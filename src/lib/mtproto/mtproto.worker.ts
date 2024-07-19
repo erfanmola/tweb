@@ -10,21 +10,24 @@ import '../../helpers/peerIdPolyfill';
 
 import cryptoWorker from '../crypto/cryptoMessagePort';
 import {setEnvironment} from '../../environment/utils';
-import appStateManager from '../appManagers/appStateManager';
+import {AppStateManager, appStateManagerInstances} from '../appManagers/appStateManager';
 import transportController from './transports/controller';
 import MTProtoMessagePort from './mtprotoMessagePort';
-import RESET_STORAGES_PROMISE from '../appManagers/utils/storages/resetStoragesPromise';
-import appManagersManager from '../appManagers/appManagersManager';
+import {createResetStoragePromise, RESET_STORAGES_PROMISE_INSTANCES} from '../appManagers/utils/storages/resetStoragesPromise';
+import {AppManagersManager, appManagersManagerInstances} from '../appManagers/appManagersManager';
 import listenMessagePort from '../../helpers/listenMessagePort';
 import {logger} from '../logger';
 import {State} from '../../config/state';
 import toggleStorages from '../../helpers/toggleStorages';
-import appTabsManager from '../appManagers/appTabsManager';
+import {AppTabsManager, appTabsManagerInstances} from '../appManagers/appTabsManager';
 import callbackify from '../../helpers/callbackify';
 import Modes from '../../config/modes';
+import copy from '../../helpers/object/copy';
 
 const log = logger('MTPROTO');
 // let haveState = false;
+
+const instanceId = self.name;
 
 const port = new MTProtoMessagePort<false>();
 port.addMultipleEventsListeners({
@@ -47,15 +50,23 @@ port.addMultipleEventsListeners({
 
     log('got state', state, pushedKeys);
 
-    appStateManager.userId = userId;
-    appStateManager.newVersion = newVersion;
-    appStateManager.oldVersion = oldVersion;
+    if(!(instanceId in appStateManagerInstances)) {
+      appStateManagerInstances[instanceId] = new AppStateManager(instanceId);
+    }
 
-    RESET_STORAGES_PROMISE.resolve({
+    appStateManagerInstances[instanceId].userId = userId;
+    appStateManagerInstances[instanceId].newVersion = newVersion;
+    appStateManagerInstances[instanceId].oldVersion = oldVersion;
+
+    if(!(instanceId in RESET_STORAGES_PROMISE_INSTANCES)) {
+      RESET_STORAGES_PROMISE_INSTANCES[instanceId] = createResetStoragePromise();
+    }
+
+    RESET_STORAGES_PROMISE_INSTANCES[instanceId].resolve({
       storages: resetStorages,
-      callback: () => {
-        (Object.keys(state) as any as (keyof State)[]).forEach((key) => {
-          appStateManager.pushToState(key, state[key], true, !pushedKeys.includes(key));
+      callback: async() => {
+        (Object.keys(state) as any as (keyof State)[]).forEach(async(key) => {
+          appStateManagerInstances[instanceId].pushToState(key, state[key], true, !pushedKeys.includes(key));
         });
       }
     });
@@ -72,11 +83,11 @@ port.addMultipleEventsListeners({
   },
 
   serviceWorkerOnline: (online) => {
-    appManagersManager.isServiceWorkerOnline = online;
+    appManagersManagerInstances[instanceId].isServiceWorkerOnline = online;
   },
 
   serviceWorkerPort: (payload, source, event) => {
-    appManagersManager.onServiceWorkerPort(event);
+    appManagersManagerInstances[instanceId].onServiceWorkerPort(event);
     port.invokeVoid('receivedServiceMessagePort', undefined, source);
   },
 
@@ -102,18 +113,26 @@ port.addMultipleEventsListeners({
 
 log('MTProto start');
 
-appManagersManager.start();
-appManagersManager.getManagers();
-appTabsManager.start();
+if(!(instanceId in appManagersManagerInstances)) {
+  appManagersManagerInstances[instanceId] = new AppManagersManager(instanceId);
+}
+
+if(!(instanceId in appTabsManagerInstances)) {
+  appTabsManagerInstances[instanceId] = new AppTabsManager();
+}
+
+appManagersManagerInstances[instanceId].start();
+appManagersManagerInstances[instanceId].getManagers();
+appTabsManagerInstances[instanceId].start();
 
 let isFirst = true;
 // let sentHello = false;
 listenMessagePort(port, (source) => {
-  appTabsManager.addTab(source);
+  appTabsManagerInstances[instanceId].addTab(source);
   if(isFirst) {
     isFirst = false;
   } else {
-    callbackify(appManagersManager.getManagers(), (managers) => {
+    callbackify(appManagersManagerInstances[instanceId].getManagers(), (managers) => {
       managers.thumbsStorage.mirrorAll(source);
       managers.appPeersManager.mirrorAllPeers(source);
       managers.appMessagesManager.mirrorAllMessages(source);
@@ -126,5 +145,5 @@ listenMessagePort(port, (source) => {
   //   sentHello = true;
   // }
 }, (source) => {
-  appTabsManager.deleteTab(source);
+  appTabsManagerInstances[instanceId].deleteTab(source);
 });

@@ -4,19 +4,22 @@
  * https://github.com/morethanwords/tweb/blob/master/LICENSE
  */
 
-import type {DcId} from '../types';
-import Page from './page';
 import {AuthAuthorization, AuthLoginToken} from '../layer';
+import {LangPackKey, _i18n, i18n} from '../lib/langPack';
+import instanceManager from '../config/instances';
+
 import App from '../config/app';
 import Button from '../components/button';
-import {_i18n, i18n, LangPackKey} from '../lib/langPack';
-import rootScope from '../lib/rootScope';
-import {putPreloader} from '../components/putPreloader';
-import getLanguageChangeButton from '../components/languageChangeButton';
-import pause from '../helpers/schedulers/pause';
-import fixBase64String from '../helpers/fixBase64String';
+import ButtonIcon from '../components/buttonIcon';
+import type {DcId} from '../types';
+import Page from './page';
 import bytesCmp from '../helpers/bytes/bytesCmp';
 import bytesToBase64 from '../helpers/bytes/bytesToBase64';
+import fixBase64String from '../helpers/fixBase64String';
+import getLanguageChangeButton from '../components/languageChangeButton';
+import pause from '../helpers/schedulers/pause';
+import {putPreloader} from '../components/putPreloader';
+import rootScope from '../lib/rootScope';
 import textToSvgURL from '../helpers/textToSvgURL';
 
 const FETCH_INTERVAL = 3;
@@ -26,6 +29,23 @@ const onFirstMount = async() => {
   const imageDiv = pageElement.querySelector('.auth-image') as HTMLDivElement;
 
   let preloader = putPreloader(imageDiv, true);
+
+  if(instanceManager.getLoggedInInstanceIDs().length > 0) {
+    const cancelButtonContainer = document.createElement('div');
+    const cancelButton = ButtonIcon('close');
+
+    cancelButton.addEventListener('click', async() => {
+      let lastInstance = instanceManager.getLoggedInInstanceIDs().find(item => item == instanceManager.getLastInstanceId());
+      if(!(lastInstance)) {
+        lastInstance = instanceManager.getLoggedInInstanceIDs()[0];
+      }
+      await instanceManager.destroyInstance(instanceManager.getActiveInstanceID());
+      await instanceManager.switchToInstance(lastInstance);
+    });
+
+    cancelButtonContainer.append(cancelButton);
+    imageDiv.parentElement.prepend(cancelButtonContainer);
+  }
 
   const inputWrapper = document.createElement('div');
   inputWrapper.classList.add('input-wrapper');

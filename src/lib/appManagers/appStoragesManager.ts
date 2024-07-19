@@ -16,16 +16,19 @@ export class AppStoragesManager extends AppManager {
 
   private log: ReturnType<typeof logger>;
 
-  constructor() {
+  private dbInstance: string;
+
+  constructor(dbInstance: string = 'default') {
     super();
 
     this.log = logger('STORAGES');
-    this.storages = createStorages();
+    this.dbInstance = dbInstance;
+    this.storages = createStorages(this.dbInstance);
     // this.loadPromise = deferredPromise();
   }
 
   public loadStorages() {
-    return loadStorages(this.storages);
+    return loadStorages(this.storages, this.dbInstance);
     // loadStorages(this.storages).then((storagesResults) => {
     // this.loadPromise.resolve(storagesResults);
     // });

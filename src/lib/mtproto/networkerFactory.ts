@@ -23,6 +23,13 @@ export class NetworkerFactory extends AppManager {
   // public onConnectionStatusChange: (status: ConnectionStatusChange) => void = null;
   public akStopped = false;
 
+  private dbInstance: string;
+
+  constructor(dbInstance: string = 'default') {
+    super();
+    this.dbInstance = dbInstance;
+  }
+
   public onConnectionStatusChange(status: ConnectionStatusChange) {
     this.rootScope.dispatchEvent('connection_status_change', status);
     //  ({type: 'connectionStatusChange', payload: status});
@@ -38,7 +45,7 @@ export class NetworkerFactory extends AppManager {
 
   public getNetworker(dcId: number, authKey: Uint8Array, authKeyId: Uint8Array, serverSalt: Uint8Array, options: InvokeApiOptions) {
     // console.log('NetworkerFactory: creating new instance of MTPNetworker:', dcId, options);
-    const networker = new MTPNetworker(this, this.timeManager, dcId, authKey, authKeyId, serverSalt, options);
+    const networker = new MTPNetworker(this.dbInstance, this, this.timeManager, dcId, authKey, authKeyId, serverSalt, options);
     this.networkers.push(networker);
     return networker;
   }

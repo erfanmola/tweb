@@ -20,6 +20,8 @@ import wrapEmojiText from '../lib/richTextProcessor/wrapEmojiText';
 import Button from '../components/button';
 import {putPreloader} from '../components/putPreloader';
 import Icon from '../components/icon';
+import ButtonIcon from '../components/buttonIcon';
+import instanceManager from '../config/instances';
 
 let authCode: AuthState.signUp['authCode'] = null;
 
@@ -30,6 +32,25 @@ const onFirstMount = async() => {
     titleLangKey: 'YourName',
     subtitleLangKey: 'Login.Register.Subtitle'
   });
+
+  if(instanceManager.getLoggedInInstanceIDs().length > 0) {
+    const cancelButtonContainer = document.createElement('div');
+    const cancelButton = ButtonIcon('close');
+
+    cancelButton.addEventListener('click', async() => {
+      let lastInstance = instanceManager.getLoggedInInstanceIDs().find(item => item == instanceManager.getLastInstanceId());
+      if(!(lastInstance)) {
+        lastInstance = instanceManager.getLoggedInInstanceIDs()[0];
+      }
+      await instanceManager.destroyInstance(instanceManager.getActiveInstanceID());
+      await instanceManager.switchToInstance(lastInstance);
+    });
+
+    cancelButtonContainer.append(cancelButton);
+    const pageElement = page.container;
+    const imageDiv = pageElement.querySelector('.auth-image') as HTMLDivElement;
+    imageDiv.parentElement.prepend(cancelButtonContainer);
+  }
 
   page.imageDiv.classList.add('avatar-edit');
 

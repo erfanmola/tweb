@@ -83,7 +83,8 @@ export default class FiltersStorage extends AppManager {
     });
 
     return this.appStateManager.getState().then((state) => {
-      const filtersArr = this.prependFilters(state.filtersArr);
+      if(!state) return;
+      const filtersArr = this.prependFilters(state.filtersArr ?? []);
       filtersArr.map((filter) => {
         this.saveDialogFilter(filter, false, true);
       });
@@ -485,7 +486,7 @@ export default class FiltersStorage extends AppManager {
     }
 
     const messagesDialogFilters = await this.apiManager.invokeApiSingle('messages.getDialogFilters');
-    const prepended = this.prependFilters(messagesDialogFilters.filters);
+    const prepended = this.prependFilters(messagesDialogFilters.filters ?? []);
     return prepended.map((filter) => this.saveDialogFilter(filter, overwrite)).filter(Boolean);
   }
 

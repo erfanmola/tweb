@@ -126,3 +126,7 @@ export class MTTransportController extends EventListenerBase<{
 
 const transportController = new MTTransportController();
 export default transportController;
+
+export const transportControllerInstances: {[key: string]: MTTransportController} = {
+  'default': transportController
+}

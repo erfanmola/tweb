@@ -4,7 +4,7 @@
  * https://github.com/morethanwords/tweb/blob/master/LICENSE
  */
 
-import rootScope from '../lib/rootScope';
+import rootScope, {rootScopeInstances} from '../lib/rootScope';
 import {i18n} from '../lib/langPack';
 import replaceContent from '../helpers/dom/replaceContent';
 import {HIDDEN_PEER_ID, NULL_PEER_ID} from '../lib/mtproto/mtproto_config';
@@ -18,6 +18,7 @@ import {wrapTopicIcon} from './wrappers/messageActionTextNewUnsafe';
 import lottieLoader from '../lib/rlottie/lottieLoader';
 
 export type PeerTitleOptions = {
+  instanceId?: string,
   peerId?: PeerId,
   fromName?: string,
   plainText?: boolean,
@@ -51,7 +52,10 @@ export default class PeerTitle {
   public options: PeerTitleOptions;
   private hasInner: boolean;
 
-  constructor(options?: PeerTitleOptions) {
+  private instanceId: string;
+
+  constructor(options?: PeerTitleOptions, instanceId?: string) {
+    this.instanceId = (options && 'instanceId' in options && options.instanceId) ? options.instanceId : 'default';
     this.element = document.createElement('span');
     this.element.classList.add('peer-title');
     setDirection(this.element);
@@ -106,7 +110,7 @@ export default class PeerTitle {
 
     let hasInner: boolean;
     const {peerId, threadId} = this.options;
-    if(peerId === rootScope.myId && this.options.dialog) {
+    if(peerId === rootScopeInstances[this.instanceId].myId && this.options.dialog) {
       let element: HTMLElement;
       if(this.options.meAsNotes) {
         element = i18n(this.options.onlyFirstName ? 'MyNotesShort' : 'MyNotes');
@@ -120,12 +124,12 @@ export default class PeerTitle {
     } else {
       if(threadId) {
         const [topic, isForum] = await Promise.all([
-          rootScope.managers.dialogsStorage.getForumTopic(peerId, threadId),
-          rootScope.managers.appPeersManager.isForum(peerId)
+          rootScopeInstances[this.instanceId].managers.dialogsStorage.getForumTopic(peerId, threadId),
+          rootScopeInstances[this.instanceId].managers.appPeersManager.isForum(peerId)
         ]);
 
         if(!topic && isForum) {
-          rootScope.managers.dialogsStorage.getForumTopicById(peerId, threadId).then((forumTopic) => {
+          rootScopeInstances[this.instanceId].managers.dialogsStorage.getForumTopicById(peerId, threadId).then((forumTopic) => {
             if(!forumTopic && this.options.threadId === threadId) {
               this.options.threadId = undefined;
               this.update({threadId: undefined});
@@ -147,7 +151,7 @@ export default class PeerTitle {
       }
 
       const getTopicIconPromise = threadId && this.options.withIcons ?
-        rootScope.managers.dialogsStorage.getForumTopic(peerId, threadId).then((topic) => wrapTopicIcon({...(this.options.wrapOptions ?? {}), topic})) :
+      rootScopeInstances[this.instanceId].managers.dialogsStorage.getForumTopic(peerId, threadId).then((topic) => wrapTopicIcon({...(this.options.wrapOptions ?? {}), topic})) :
         undefined;
 
       const [title, icons, topicIcon] = await Promise.all([

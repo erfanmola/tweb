@@ -37,4 +37,16 @@ const DATABASE_STATE: Database<'session' | 'stickerSets' | 'users' | 'chats' | '
   }]
 };
 
+const DBState = (dbInstance: string = 'default'): typeof DATABASE_STATE => {
+  const db = JSON.parse(JSON.stringify(DATABASE_STATE));
+  if(dbInstance !== 'default' && dbInstance.length > 0) {
+    db.name = `tweb_${dbInstance}`;
+  }
+  return db;
+}
+
+export {
+  DBState
+}
+
 export default DATABASE_STATE;

@@ -11,14 +11,15 @@ import compareVersion from '../../../../helpers/compareVersion';
 import copy from '../../../../helpers/object/copy';
 import validateInitObject from '../../../../helpers/object/validateInitObject';
 import {UserAuth} from '../../../mtproto/mtproto_config';
-import rootScope from '../../../rootScope';
-import stateStorage from '../../../stateStorage';
-import sessionStorage from '../../../sessionStorage';
+import {rootScopeInstances} from '../../../rootScope';
+import {StateStorage, stateStorageInstances} from '../../../stateStorage';
+import {SessionStorage, sessionStorageInstances} from '../../../sessionStorage';
 import {recordPromiseBound} from '../../../../helpers/recordPromise';
 // import RESET_STORAGES_PROMISE from "../storages/resetStoragesPromise";
 import {StoragesResults} from '../storages/loadStorages';
 import {LogTypes, logger} from '../../../logger';
 import {WallPaper} from '../../../../layer';
+import LocalStorageController from '../../../localStorage';
 
 const REFRESH_EVERY = 24 * 60 * 60 * 1000; // 1 day
 // const REFRESH_EVERY = 1e3;
@@ -38,22 +39,31 @@ const REFRESH_KEYS: Array<keyof State> = [
 
 // const REFRESH_KEYS_WEEK = ['dialogs', 'allDialogsLoaded', 'updates', 'pinnedOrders'] as any as Array<keyof State>;
 
-async function loadStateInner() {
+async function loadStateInner(dbInstance: string = 'default') {
   const log = logger('STATE-LOADER', LogTypes.Error);
+
+  if(!(dbInstance in sessionStorageInstances)) {
+    sessionStorageInstances[dbInstance] = new LocalStorageController<SessionStorage>(dbInstance);
+  }
+  await sessionStorageInstances[dbInstance].waitUntilPrefixInitialized();
 
   const totalPerf = performance.now();
   const recordPromise = recordPromiseBound(log);
 
-  const promises = ALL_KEYS.map((key) => recordPromise(stateStorage.get(key), 'state ' + key))
+  if(!(dbInstance in stateStorageInstances)) {
+    stateStorageInstances[dbInstance] = new StateStorage(dbInstance);
+  }
+
+  const promises = ALL_KEYS.map((key) => recordPromise(stateStorageInstances[dbInstance].get(key), 'state ' + key))
   .concat(
-    recordPromise(sessionStorage.get('user_auth'), 'auth'),
-    recordPromise(sessionStorage.get('state_id'), 'auth'),
-    recordPromise(sessionStorage.get('k_build'), 'auth'),
-    recordPromise(sessionStorage.get('auth_key_fingerprint'), 'auth'),
-    recordPromise(sessionStorage.get(`dc${App.baseDcId}_auth_key`), 'auth')
+    recordPromise(sessionStorageInstances[dbInstance].get('user_auth'), 'auth'),
+    recordPromise(sessionStorageInstances[dbInstance].get('state_id'), 'auth'),
+    recordPromise(sessionStorageInstances[dbInstance].get('k_build'), 'auth'),
+    recordPromise(sessionStorageInstances[dbInstance].get('auth_key_fingerprint'), 'auth'),
+    recordPromise(sessionStorageInstances[dbInstance].get(`dc${App.baseDcId}_auth_key`), 'auth')
   )
   .concat( // support old webk format
-    recordPromise(stateStorage.get('user_auth'), 'old auth')
+    recordPromise(stateStorageInstances[dbInstance].get('user_auth'), 'old auth')
   );
 
   const arr = await Promise.all(promises);
@@ -140,7 +150,7 @@ async function loadStateInner() {
       keys.push(`dc${i}_auth_key`);
     }
 
-    const values = await Promise.all(keys.map((key) => stateStorage.get(key as any)));
+    const values = await Promise.all(keys.map((key) => stateStorageInstances[dbInstance].get(key as any)));
     keys.push('user_auth');
     values.push(typeof(auth) === 'number' || typeof(auth) === 'string' ? {dcID: values[0] || App.baseDcId, date: Date.now() / 1000 | 0, id: auth.toPeerId(false)} as UserAuth : auth);
 
@@ -149,7 +159,7 @@ async function loadStateInner() {
       obj[key] = values[idx];
     });
 
-    await sessionStorage.set(obj);
+    await sessionStorageInstances[dbInstance].set(obj);
   }
 
   /* if(!auth) { // try to read Webogram's session from localStorage
@@ -179,7 +189,7 @@ async function loadStateInner() {
   if(auth) {
     // ! Warning ! DON'T delete this
     state.authState = {_: 'authStateSignedIn'};
-    rootScope.dispatchEvent('user_auth', typeof(auth) === 'number' || typeof(auth) === 'string' ?
+    rootScopeInstances[dbInstance].dispatchEvent('user_auth', typeof(auth) === 'number' || typeof(auth) === 'string' ?
       {dcID: 0, date: Date.now() / 1000 | 0, id: auth.toPeerId(false)} :
       auth); // * support old version
   }
@@ -212,7 +222,7 @@ async function loadStateInner() {
       resetState([]);
     }
 
-    await sessionStorage.set({
+    await sessionStorageInstances[dbInstance].set({
       state_id: state.stateId
     });
   }
@@ -226,7 +236,7 @@ async function loadStateInner() {
     }
 
     if(authKeyFingerprint !== _authKeyFingerprint) {
-      await sessionStorage.set({
+      await sessionStorageInstances[dbInstance].set({
         auth_key_fingerprint: _authKeyFingerprint
       });
     }
@@ -434,11 +444,11 @@ async function loadStateInner() {
   }
 
   if(sessionBuild !== BUILD && (!sessionBuild || sessionBuild < BUILD)) {
-    sessionStorage.set({k_build: BUILD});
+    sessionStorageInstances[dbInstance].set({k_build: BUILD});
   }
 
   // ! probably there is better place for it
-  rootScope.settings = state.settings;
+  rootScopeInstances[dbInstance].settings = state.settings;
 
   if(DEBUG) {
     log('state res', state, copy(state));
@@ -449,11 +459,13 @@ async function loadStateInner() {
   log.warn('total', performance.now() - totalPerf);
 
   // RESET_STORAGES_PROMISE.resolve(appStateManager.resetStorages);
-
   return {state, resetStorages, newVersion, oldVersion, pushedKeys};
 }
 
-let promise: ReturnType<typeof loadStateInner>;
-export default function loadState() {
-  return promise ??= loadStateInner();
+const promises: {[key: string]: ReturnType<typeof loadStateInner>} = {};
+export default function loadState(dbInstance: string = 'default') {
+  if(!(dbInstance in promises)) {
+    promises[dbInstance] = loadStateInner(dbInstance);
+  }
+  return promises[dbInstance];
 }

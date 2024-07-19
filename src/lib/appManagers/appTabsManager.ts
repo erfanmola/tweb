@@ -50,3 +50,7 @@ export class AppTabsManager {
 const appTabsManager = new AppTabsManager();
 MOUNT_CLASS_TO && (MOUNT_CLASS_TO.appTabsManager = appTabsManager);
 export default appTabsManager;
+
+export const appTabsManagerInstances: {[key: string]: AppTabsManager} = {
+  'default': appTabsManager
+};

@@ -20,13 +20,13 @@ import deepEqual from '../../helpers/object/deepEqual';
 import tsNow from '../../helpers/tsNow';
 import {Message, MessagePeerReaction, PeerNotifySettings, Reaction} from '../../layer';
 import I18n, {FormatterArguments, LangPackKey} from '../langPack';
-import apiManagerProxy from '../mtproto/mtprotoworker';
-import singleInstance from '../mtproto/singleInstance';
+import {apiManagerProxyInstances} from '../mtproto/mtprotoworker';
+import {multiInstance} from '../mtproto/singleInstance';
 import webPushApiManager, {PushSubscriptionNotify} from '../mtproto/webPushApiManager';
 import fixEmoji from '../richTextProcessor/fixEmoji';
 import getAbbreviation from '../richTextProcessor/getAbbreviation';
 import wrapPlainText from '../richTextProcessor/wrapPlainText';
-import rootScope from '../rootScope';
+import {rootScopeInstances} from '../rootScope';
 import appImManager from './appImManager';
 import appRuntimeManager from './appRuntimeManager';
 import {AppManagers} from './managers';
@@ -35,6 +35,9 @@ import {getPeerAvatarColorByPeer} from './utils/peers/getPeerColorById';
 import getPeerId from './utils/peers/getPeerId';
 import {logger} from '../logger';
 import LazyLoadQueueBase from '../../components/lazyLoadQueueBase';
+import instanceManager from '../../config/instances';
+import {getProxiedManagersInstance} from './getProxiedManagers';
+import appNavigationController from '../../components/appNavigationController';
 
 type MyNotification = Notification & {
   hidden?: boolean,
@@ -100,6 +103,12 @@ export class UiNotificationsManager {
 
   private notificationsQueue: LazyLoadQueueBase;
 
+  private dbInstance: string = 'default';
+
+  constructor(dbInstance: string = 'default') {
+    this.dbInstance = dbInstance;
+  }
+
   construct(managers: AppManagers) {
     this.managers = managers;
 
@@ -118,11 +127,11 @@ export class UiNotificationsManager {
 
     this.topMessagesDeferred = deferredPromise<void>();
 
-    singleInstance.addEventListener('deactivated', () => {
+    multiInstance[this.dbInstance].addEventListener('deactivated', () => {
       this.stop();
     });
 
-    singleInstance.addEventListener('activated', () => {
+    multiInstance[this.dbInstance].addEventListener('activated', () => {
       if(this.stopped) {
         this.start();
       }
@@ -140,16 +149,16 @@ export class UiNotificationsManager {
       this.toggleToggler();
     });
 
-    rootScope.addEventListener('notification_reset', (peerString) => {
+    rootScopeInstances[this.dbInstance].addEventListener('notification_reset', (peerString) => {
       this.soundReset(peerString);
     });
 
-    rootScope.addEventListener('notification_cancel', (str) => {
+    rootScopeInstances[this.dbInstance].addEventListener('notification_cancel', (str) => {
       this.cancel(str);
     });
 
     if(this.setAppBadge) {
-      rootScope.addEventListener('folder_unread', (folder) => {
+      rootScopeInstances[this.dbInstance].addEventListener('folder_unread', (folder) => {
         if(folder.id === 0) {
           this.setAppBadge(folder.unreadUnmutedPeerIds.size);
         }
@@ -175,7 +184,7 @@ export class UiNotificationsManager {
       this.unregisterDevice(tokenData);
     });
 
-    rootScope.addEventListener('dialogs_multiupdate', () => {
+    rootScopeInstances[this.dbInstance].addEventListener('dialogs_multiupdate', () => {
       // unregisterTopMsgs()
       this.topMessagesDeferred.resolve();
     }, {once: true});
@@ -240,9 +249,9 @@ export class UiNotificationsManager {
     });
   }
 
-  public async buildNotificationQueue(options: Parameters<UiNotificationsManager['buildNotification']>[0]) {
+  public async buildNotificationQueue(options: Parameters<UiNotificationsManager['buildNotification']>[0], instance: string = 'default') {
     this.notificationsQueue.push({
-      load: () => this.buildNotification(options)
+      load: () => this.buildNotification(options, instance)
     });
   }
 
@@ -256,14 +265,14 @@ export class UiNotificationsManager {
     fwdCount?: number,
     peerReaction?: MessagePeerReaction,
     peerTypeNotifySettings?: PeerNotifySettings
-  }) {
+  }, instance: string = 'default') {
     const peerId = message.peerId;
     const isAnyChat = peerId.isAnyChat();
     const notification: NotifyOptions = {};
     const [peerString, isForum = false, peer] = await Promise.all([
       this.managers.appPeersManager.getPeerString(peerId),
       isAnyChat && this.managers.appPeersManager.isForum(peerId),
-      apiManagerProxy.getPeer(peerId)
+      apiManagerProxyInstances[this.dbInstance].getPeer(peerId)
     ]);
     let notificationMessage: string;
     let wrappedMessage = false;
@@ -331,7 +340,22 @@ export class UiNotificationsManager {
     notification.title = wrapPlainText(notification.title);
 
     notification.onclick = () => {
-      appImManager.setInnerPeer({peerId, lastMsgId: message.mid, threadId});
+      if(instance === 'default') {
+        appImManager.setInnerPeer({peerId, lastMsgId: message.mid, threadId});
+      } else {
+        setTimeout(async() => {
+          let str: string;
+          if(peerId) {
+            const managers = getProxiedManagersInstance(instance);
+            const username = await managers.appPeersManager.getPeerUsername(peerId);
+            str = username ? '@' + username : '' + peerId;
+          }
+          await instanceManager.switchToInstance(instance, `/#${str}`);
+          location.href = `/#${str}`;
+          location.reload();
+          // Not sure why, but location.href is not forcing a reload on it's own when using SharedWorkers
+        });
+      }
     };
 
     notification.message = notificationMessage;
@@ -646,7 +670,7 @@ export class UiNotificationsManager {
       webPushApiManager.setSettings(this.settings);
     });
 
-    apiManagerProxy.getState().then((state) => {
+    apiManagerProxyInstances[this.dbInstance].getState().then((state) => {
       this.settings.nosound = !state.settings.notifications.sound;
     });
   }
@@ -737,8 +761,8 @@ export class UiNotificationsManager {
     this.stopped = false;
 
     this.updateLocalSettings();
-    rootScope.addEventListener('settings_updated', this.updateLocalSettings);
-    apiManagerProxy.getState().then((state) => {
+    rootScopeInstances[this.dbInstance].addEventListener('settings_updated', this.updateLocalSettings);
+    apiManagerProxyInstances[this.dbInstance].getState().then((state) => {
       if(this.stopped || !state.keepSigned) {
         return;
       }
@@ -810,3 +834,7 @@ export class UiNotificationsManager {
 const uiNotificationsManager = new UiNotificationsManager();
 MOUNT_CLASS_TO && (MOUNT_CLASS_TO.uiNotificationsManager = uiNotificationsManager);
 export default uiNotificationsManager;
+
+export const uiNotificationsManagerInstances: {[key: string]: UiNotificationsManager} = {
+  'default': uiNotificationsManager
+};

@@ -16,9 +16,9 @@ import IS_SHARED_WORKER_SUPPORTED from '../../environment/sharedWorkerSupport';
 import EventListenerBase from '../../helpers/eventListenerBase';
 import idleController from '../../helpers/idleController';
 import {logger} from '../logger';
-import rootScope from '../rootScope';
-import sessionStorage from '../sessionStorage';
-import apiManagerProxy from './mtprotoworker';
+import {rootScopeInstances} from '../rootScope';
+import {sessionStorageInstances} from '../sessionStorage';
+import {apiManagerProxyInstances} from './mtprotoworker';
 
 export type AppInstance = {
   id: number,
@@ -44,11 +44,14 @@ export class SingleInstance extends EventListenerBase<{
   private deactivated: InstanceDeactivateReason;
   private log = logger('INSTANCE');
 
-  constructor() {
+  private dbInstance: string;
+
+  constructor(dbInstance: string = 'default') {
     super(false);
 
     this.log = logger('INSTANCE');
     this.instanceId = tabId;
+    this.dbInstance = dbInstance;
   }
 
   public get deactivatedReason() {
@@ -80,7 +83,7 @@ export class SingleInstance extends EventListenerBase<{
   private clearInstance = () => {
     if(this.masterInstance && !this.deactivated) {
       this.log.warn('clear master instance');
-      sessionStorage.delete('xt_instance');
+      sessionStorageInstances[this.dbInstance].delete('xt_instance');
     }
   };
 
@@ -123,19 +126,21 @@ export class SingleInstance extends EventListenerBase<{
       time
     };
 
+    await sessionStorageInstances[this.dbInstance].waitUntilPrefixInitialized();
+
     const [curInstance, build = App.build] = await Promise.all([
-      sessionStorage.get('xt_instance', false),
-      sessionStorage.get('k_build', false)
+      sessionStorageInstances[this.dbInstance].get('xt_instance', false),
+      sessionStorageInstances[this.dbInstance].get('k_build', false)
     ]);
 
     if(build > App.build) {
       this.masterInstance = false;
-      rootScope.managers.networkerFactory.stopAll();
+      rootScopeInstances[this.dbInstance].managers.networkerFactory.stopAll();
       this.deactivateInstance('version');
-      apiManagerProxy.toggleStorages(false, false);
+      apiManagerProxyInstances[this.dbInstance].toggleStorages(false, false);
       return;
     } else if(IS_MULTIPLE_TABS_SUPPORTED) {
-      sessionStorage.set({xt_instance: newInstance});
+      sessionStorageInstances[this.dbInstance].set({xt_instance: newInstance});
       return;
     }
 
@@ -144,18 +149,18 @@ export class SingleInstance extends EventListenerBase<{
         !curInstance ||
         curInstance.id === this.instanceId ||
         curInstance.time < (time - MULTIPLE_TABS_THRESHOLD)) {
-      sessionStorage.set({xt_instance: newInstance});
+      sessionStorageInstances[this.dbInstance].set({xt_instance: newInstance});
 
       if(!this.masterInstance) {
         this.masterInstance = true;
-        rootScope.managers.networkerFactory.startAll();
+        rootScopeInstances[this.dbInstance].managers.networkerFactory.startAll();
         this.log.warn('now master instance', newInstance);
       }
 
       this.clearDeactivateTimeout();
     } else if(this.masterInstance) {
       this.masterInstance = false;
-      rootScope.managers.networkerFactory.stopAll();
+      rootScopeInstances[this.dbInstance].managers.networkerFactory.stopAll();
       this.log.warn('now idle instance', newInstance);
       this.deactivateTimeout ||= window.setTimeout(() => this.deactivateInstance('tabs'), DEACTIVATE_TIMEOUT);
     }
@@ -165,3 +170,7 @@ export class SingleInstance extends EventListenerBase<{
 const singleInstance = new SingleInstance();
 MOUNT_CLASS_TO && (MOUNT_CLASS_TO.singleInstance = singleInstance);
 export default singleInstance;
+
+export const multiInstance: {[key: string]: SingleInstance} = {
+  'default': singleInstance
+}

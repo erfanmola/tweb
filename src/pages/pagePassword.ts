@@ -20,6 +20,8 @@ import replaceContent from '../helpers/dom/replaceContent';
 import toggleDisability from '../helpers/dom/toggleDisability';
 import wrapEmojiText from '../lib/richTextProcessor/wrapEmojiText';
 import rootScope from '../lib/rootScope';
+import ButtonIcon from '../components/buttonIcon';
+import instanceManager from '../config/instances';
 
 const TEST = false;
 let passwordInput: HTMLInputElement;
@@ -31,6 +33,25 @@ const onFirstMount = (): Promise<any> => {
     titleLangKey: 'Login.Password.Title',
     subtitleLangKey: 'Login.Password.Subtitle'
   });
+
+  if(instanceManager.getLoggedInInstanceIDs().length > 0) {
+    const cancelButtonContainer = document.createElement('div');
+    const cancelButton = ButtonIcon('close');
+
+    cancelButton.addEventListener('click', async() => {
+      let lastInstance = instanceManager.getLoggedInInstanceIDs().find(item => item == instanceManager.getLastInstanceId());
+      if(!(lastInstance)) {
+        lastInstance = instanceManager.getLoggedInInstanceIDs()[0];
+      }
+      await instanceManager.destroyInstance(instanceManager.getActiveInstanceID());
+      await instanceManager.switchToInstance(lastInstance);
+    });
+
+    cancelButtonContainer.append(cancelButton);
+    const pageElement = page.container;
+    const imageDiv = pageElement.querySelector('.auth-image') as HTMLDivElement;
+    imageDiv.parentElement.prepend(cancelButtonContainer);
+  }
 
   const btnNext = Button('btn-primary btn-color-primary');
   const btnNextI18n = new I18n.IntlElement({key: 'Login.Next'});

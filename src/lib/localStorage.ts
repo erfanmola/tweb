@@ -9,6 +9,7 @@
  * https://github.com/zhukov/webogram/blob/master/LICENSE
  */
 
+import instanceManager from '../config/instances';
 import Modes from '../config/modes';
 import {IS_WORKER} from '../helpers/context';
 import makeError from '../helpers/makeError';
@@ -21,10 +22,33 @@ class LocalStorage<Storage extends Record<string, any>> {
   private cache: Partial<Storage> = {};
   private useStorage = true;
 
-  constructor(/* private preserveKeys: (keyof Storage)[] */) {
-    if(Modes.test) {
-      this.prefix = 't_';
+  public prefixed: boolean = false;
+
+  constructor(/* private preserveKeys: (keyof Storage)[] */dbInstance: string = 'default') {
+    if(dbInstance === 'default') {
+      this.initializePrefix();
+      if(Modes.test) {
+        this.prefix = 't_';
+      }
+    } else {
+      this.prefixed = true;
+      if(Modes.test) {
+        this.prefix = `${dbInstance}_t_`;
+      } else {
+        this.prefix = `${dbInstance}_`;
+      }
     }
+  }
+
+  public async initializePrefix() {
+    if(this.prefixed) return;
+    await instanceManager.waitForInstances();
+    if(this.prefix === '') {
+      this.prefix = `${instanceManager.getActiveInstanceID()}_`;
+    } else {
+      this.prefix = `${instanceManager.getActiveInstanceID()}_${this.prefix}`;
+    }
+    this.prefixed = true;
   }
 
   public get<T extends keyof Storage>(key: T, useCache = true): Storage[T] {
@@ -172,11 +196,10 @@ export default class LocalStorageController<Storage extends Record<string, any>>
 
   private storage: LocalStorage<Storage>;
 
-  constructor(/* private preserveKeys: (keyof Storage)[] = [] */) {
+  constructor(/* private preserveKeys: (keyof Storage)[] = [] */dbInstance: string = 'default') {
     LocalStorageController.STORAGES.push(this);
-
     if(!IS_WORKER) {
-      this.storage = new LocalStorage(/* preserveKeys */);
+      this.storage = new LocalStorage(/* preserveKeys */dbInstance);
     }
   }
 
@@ -210,5 +233,27 @@ export default class LocalStorageController<Storage extends Record<string, any>>
 
   public toggleStorage(enabled: boolean, clearWrite: boolean) {
     return this.proxy<void>('toggleStorage', enabled, clearWrite);
+  }
+
+  public async waitUntilPrefixInitialized() {
+    return new Promise(async(resolve) => {
+      if(!(this.storage)) {
+        await new Promise((res) => {
+          const interval = setInterval(() => {
+            if(this.storage) {
+              clearInterval(interval);
+              res(true);
+            }
+          }, 100);
+        });
+      }
+      if(this.storage.prefixed) return resolve(true);
+      const interval = setInterval(() => {
+        if(this.storage.prefixed) {
+          clearInterval(interval);
+          resolve(true);
+        }
+      }, 100);
+    });
   }
 }

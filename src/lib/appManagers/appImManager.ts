@@ -62,7 +62,7 @@ import ChatBackgroundPatternRenderer from '../../components/chat/patternRenderer
 import {IS_CHROMIUM, IS_FIREFOX} from '../../environment/userAgent';
 import compareVersion from '../../helpers/compareVersion';
 import {AppManagers} from './managers';
-import uiNotificationsManager from './uiNotificationsManager';
+import uiNotificationsManager, {UiNotificationsManager, uiNotificationsManagerInstances} from './uiNotificationsManager';
 import appMediaPlaybackController from '../../components/appMediaPlaybackController';
 import wrapEmojiText from '../richTextProcessor/wrapEmojiText';
 import wrapRichText from '../richTextProcessor/wrapRichText';
@@ -80,7 +80,7 @@ import {AckedResult} from '../mtproto/superMessagePort';
 import groupCallsController from '../calls/groupCallsController';
 import callsController from '../calls/callsController';
 import getFilesFromEvent from '../../helpers/files/getFilesFromEvent';
-import apiManagerProxy from '../mtproto/mtprotoworker';
+import apiManagerProxy, {apiManagerProxyInstances} from '../mtproto/mtprotoworker';
 import appRuntimeManager from './appRuntimeManager';
 import paymentsWrapCurrencyAmount from '../../helpers/paymentsWrapCurrencyAmount';
 import findUpClassName from '../../helpers/dom/findUpClassName';
@@ -131,6 +131,8 @@ import getSelectedNodes from '../../helpers/dom/getSelectedNodes';
 import {setQuizHint} from '../../components/poll';
 import anchorCallback from '../../helpers/dom/anchorCallback';
 import PopupPremium from '../../components/popups/premium';
+import {getProxiedManagersInstance} from './getProxiedManagers';
+import instanceManager from '../../config/instances';
 
 export type ChatSavedPosition = {
   mids: number[],
@@ -573,14 +575,29 @@ export class AppImManager extends EventListenerBase<{
       toastNew({langPackKey: saved ? 'GifSavedHint' : 'RemovedGIFFromFavorites'});
     });
 
-    apiManagerProxy.addEventListener('notificationBuild', async(options) => {
-      const isForum = await this.managers.appPeersManager.isForum(options.message.peerId);
-      const threadId = getMessageThreadId(options.message, isForum);
-      if(this.chat.peerId === options.message.peerId && this.chat.threadId === threadId && !idleController.isIdle) {
-        return;
+    Object.entries(apiManagerProxyInstances).forEach(([instanceId, apiManagerProxyInstance]) => {
+      const managers = getProxiedManagersInstance(instanceId);
+
+      if(!(instanceId in uiNotificationsManagerInstances)) {
+        uiNotificationsManagerInstances[instanceId] = new UiNotificationsManager(instanceId);
+        uiNotificationsManagerInstances[instanceId].construct(managers);
+        uiNotificationsManagerInstances[instanceId].start();
       }
 
-      uiNotificationsManager.buildNotificationQueue(options);
+      apiManagerProxyInstance.addEventListener('notificationBuild', async(options) => {
+        if(instanceId === 'default') {
+          const isForum = await managers.appPeersManager.isForum(options.message.peerId);
+          const threadId = getMessageThreadId(options.message, isForum);
+
+          if(this.chat.peerId === options.message.peerId && this.chat.threadId === threadId && !idleController.isIdle) {
+            return;
+          }
+        } else {
+          if(!(instanceManager.isGlobalNotificationsEnabled())) return;
+        }
+
+        uiNotificationsManagerInstances[instanceId].buildNotificationQueue(options, instanceId);
+      });
     });
 
     this.addEventListener('peer_changed', async({peerId}) => {

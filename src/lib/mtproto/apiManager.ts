@@ -13,7 +13,7 @@ import type {UserAuth} from './mtproto_config';
 import type {DcAuthKey, DcId, DcServerSalt, InvokeApiOptions} from '../../types';
 import type {MethodDeclMap} from '../../layer';
 import type TcpObfuscated from './transports/tcpObfuscated';
-import sessionStorage from '../sessionStorage';
+import {SessionStorage, sessionStorageInstances} from '../sessionStorage';
 import MTPNetworker, {MTMessage} from './networker';
 import {ConnectionType, constructTelegramWebSocketUrl, DcConfigurator, TransportType} from './dcConfigurator';
 import {logger} from '../logger';
@@ -21,7 +21,7 @@ import deferredPromise, {CancellablePromise} from '../../helpers/cancellableProm
 import App from '../../config/app';
 import {MOUNT_CLASS_TO} from '../../config/debug';
 import {IDB} from '../files/idb';
-import CryptoWorker from '../crypto/cryptoMessagePort';
+import {CryptoMessagePort, cryptoMessagePortInstances} from '../crypto/cryptoMessagePort';
 import ctx from '../../environment/ctx';
 import noop from '../../helpers/noop';
 import Modes from '../../config/modes';
@@ -33,8 +33,10 @@ import ApiManagerMethods from './api_methods';
 import {getEnvironment} from '../../environment/utils';
 import toggleStorages from '../../helpers/toggleStorages';
 import tsNow from '../../helpers/tsNow';
-import transportController from './transports/controller';
+import {transportControllerInstances, MTTransportController} from './transports/controller';
 import MTTransport from './transports/transport';
+import LocalStorageController from '../localStorage';
+import instanceManager from '../../config/instances';
 
 /* class RotatableArray<T> {
   public array: Array<T> = [];
@@ -80,10 +82,13 @@ export class ApiManager extends ApiManagerMethods {
 
   private loggingOut: boolean;
 
-  constructor() {
+  private dbInstance: string;
+
+  constructor(dbInstance: string = 'default') {
     super();
     this.log = logger('API');
 
+    this.dbInstance = dbInstance;
     this.cachedNetworkers = {} as any;
     this.cachedExportPromise = {};
     this.gettingNetworkers = {};
@@ -93,7 +98,10 @@ export class ApiManager extends ApiManagerMethods {
     this.transportType = Modes.transport;
 
     if(import.meta.env.VITE_MTPROTO_AUTO && Modes.multipleTransports) {
-      transportController.addEventListener('transport', (transportType) => {
+      if(!(dbInstance in transportControllerInstances)) {
+        transportControllerInstances[dbInstance] = new MTTransportController();
+      }
+      transportControllerInstances[dbInstance].addEventListener('transport', (transportType) => {
         this.changeTransportType(transportType);
       });
     }
@@ -237,8 +245,11 @@ export class ApiManager extends ApiManagerMethods {
     if(this.baseDcId) {
       return this.baseDcId;
     }
-
-    const baseDcId = await sessionStorage.get('dc');
+    if(!(this.dbInstance in sessionStorageInstances)) {
+      sessionStorageInstances[this.dbInstance] = new LocalStorageController<SessionStorage>(this.dbInstance);
+      await sessionStorageInstances[this.dbInstance].waitUntilPrefixInitialized();
+    }
+    const baseDcId = await sessionStorageInstances[this.dbInstance].get('dc');
     if(!this.baseDcId) {
       if(!baseDcId) {
         this.setBaseDcId(App.baseDcId);
@@ -262,7 +273,7 @@ export class ApiManager extends ApiManagerMethods {
       userAuth.dcID = baseDcId;
     }
 
-    sessionStorage.set({
+    sessionStorageInstances[this.dbInstance].set({
       user_auth: userAuth
     });
 
@@ -279,7 +290,7 @@ export class ApiManager extends ApiManagerMethods {
 
     this.baseDcId = dcId;
 
-    sessionStorage.set({
+    sessionStorageInstances[this.dbInstance].set({
       dc: this.baseDcId
     });
   }
@@ -288,6 +299,8 @@ export class ApiManager extends ApiManagerMethods {
     if(this.loggingOut) {
       return;
     }
+
+    const instanceId = instanceManager.getActiveInstanceID();
 
     this.loggingOut = true;
     const storageKeys: Array<DcAuthKey> = [];
@@ -298,7 +311,7 @@ export class ApiManager extends ApiManagerMethods {
     }
 
     // WebPushApiManager.forceUnsubscribe(); // WARNING // moved to worker's master
-    const storageResult = await Promise.all(storageKeys.map((key) => sessionStorage.get(key)));
+    const storageResult = await Promise.all(storageKeys.map((key) => sessionStorageInstances[this.dbInstance].get(key)));
 
     const logoutPromises: Promise<any>[] = [];
     for(let i = 0; i < storageResult.length; i++) {
@@ -313,6 +326,7 @@ export class ApiManager extends ApiManagerMethods {
       await toggleStorages(false, true);
       IDB.closeDatabases();
       this.rootScope.dispatchEvent('logging_out');
+      instanceManager.destroyInstance(instanceId);
     };
 
     setTimeout(clear, 1e3);
@@ -388,7 +402,7 @@ export class ApiManager extends ApiManagerMethods {
     const ss: DcServerSalt = `dc${dcId}_server_salt` as any;
 
     let transport = this.chooseServer(dcId, connectionType, transportType);
-    return this.gettingNetworkers[getKey] = Promise.all([ak, ss].map((key) => sessionStorage.get(key)))
+    return this.gettingNetworkers[getKey] = Promise.all([ak, ss].map((key) => sessionStorageInstances[this.dbInstance].get(key)))
     .then(async([authKeyHex, serverSaltHex]) => {
       let networker: MTPNetworker, error: any;
       if(authKeyHex?.length === 512) {
@@ -396,8 +410,12 @@ export class ApiManager extends ApiManagerMethods {
           serverSaltHex = 'AAAAAAAAAAAAAAAA';
         }
 
+        if(!(this.dbInstance in cryptoMessagePortInstances)) {
+          cryptoMessagePortInstances[this.dbInstance] = new CryptoMessagePort();
+        }
+
         const authKey = bytesFromHex(authKeyHex);
-        const authKeyId = (await CryptoWorker.invokeCrypto('sha1', authKey)).slice(-8);
+        const authKeyId = (await cryptoMessagePortInstances[this.dbInstance].invokeCrypto('sha1', authKey)).slice(-8);
         const serverSalt = bytesFromHex(serverSaltHex);
 
         networker = this.networkerFactory.getNetworker(dcId, authKey, authKeyId, serverSalt, options);
@@ -409,12 +427,12 @@ export class ApiManager extends ApiManagerMethods {
           serverSaltHex = bytesToHex(auth.serverSalt);
 
           if(dcId === App.baseDcId) {
-            sessionStorage.set({
+            sessionStorageInstances[this.dbInstance].set({
               auth_key_fingerprint: authKeyHex.slice(0, 8)
             });
           }
 
-          sessionStorage.set({
+          sessionStorageInstances[this.dbInstance].set({
             [ak]: authKeyHex,
             [ss]: serverSaltHex
           });
@@ -603,8 +621,8 @@ export class ApiManager extends ApiManagerMethods {
 
         if(error.code === 401 && this.baseDcId === dcId) {
           if(error.type !== 'SESSION_PASSWORD_NEEDED') {
-            sessionStorage.delete('dc')
-            sessionStorage.delete('user_auth'); // ! возможно тут вообще не нужно это делать, но нужно проверить случай с USER_DEACTIVATED (https://core.telegram.org/api/errors)
+            sessionStorageInstances[this.dbInstance].delete('dc')
+            sessionStorageInstances[this.dbInstance].delete('user_auth'); // ! возможно тут вообще не нужно это делать, но нужно проверить случай с USER_DEACTIVATED (https://core.telegram.org/api/errors)
             // this.telegramMeNotify(false);
           }
 

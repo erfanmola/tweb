@@ -28,6 +28,8 @@ import rootScope from '../lib/rootScope';
 import TelInputField from '../components/telInputField';
 import apiManagerProxy from '../lib/mtproto/mtprotoworker';
 import CountryInputField from '../components/countryInputField';
+import ButtonIcon from '../components/buttonIcon';
+import instanceManager from '../config/instances';
 
 // import _countries from '../countries_pretty.json';
 let btnNext: HTMLButtonElement = null, btnQr: HTMLButtonElement;
@@ -51,6 +53,25 @@ const onFirstMount = () => {
   // const countries: Country[] = _countries.default.filter((c) => c.emoji);
   // const countries: Country[] = Countries.filter((c) => c.emoji).sort((a, b) => a.name.localeCompare(b.name));
   // const countries = I18n.countriesList.filter((country) => !country.pFlags?.hidden);
+
+  if(instanceManager.getLoggedInInstanceIDs().length > 0) {
+    const cancelButtonContainer = document.createElement('div');
+    const cancelButton = ButtonIcon('close');
+
+    cancelButton.addEventListener('click', async() => {
+      let lastInstance = instanceManager.getLoggedInInstanceIDs().find(item => item == instanceManager.getLastInstanceId());
+      if(!(lastInstance)) {
+        lastInstance = instanceManager.getLoggedInInstanceIDs()[0];
+      }
+      await instanceManager.destroyInstance(instanceManager.getActiveInstanceID());
+      await instanceManager.switchToInstance(lastInstance);
+    });
+
+    cancelButtonContainer.append(cancelButton);
+    const pageElement = page.pageEl;
+    const imageDiv = pageElement.querySelector('.auth-image') as HTMLDivElement;
+    imageDiv.parentElement.prepend(cancelButtonContainer);
+  }
 
   const inputWrapper = document.createElement('div');
   inputWrapper.classList.add('input-wrapper');

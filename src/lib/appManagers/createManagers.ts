@@ -40,8 +40,8 @@ import {Authorizer} from '../mtproto/authorizer';
 import {DcConfigurator} from '../mtproto/dcConfigurator';
 import {TimeManager} from '../mtproto/timeManager';
 import {AppStoragesManager} from './appStoragesManager';
-import cryptoMessagePort from '../crypto/cryptoMessagePort';
-import appStateManager from './appStateManager';
+import cryptoMessagePort, {cryptoMessagePortInstances} from '../crypto/cryptoMessagePort';
+import appStateManager, {appStateManagerInstances} from './appStateManager';
 import filterUnique from '../../helpers/array/filterUnique';
 import AppWebDocsManager from './appWebDocsManager';
 import AppPaymentsManager from './appPaymentsManager';
@@ -97,6 +97,115 @@ export default function createManagers(appStoragesManager: AppStoragesManager, u
     timeManager: new TimeManager,
     appStoragesManager: appStoragesManager,
     appStateManager: appStateManager,
+    appWebDocsManager: new AppWebDocsManager,
+    appPaymentsManager: new AppPaymentsManager,
+    appAttachMenuBotsManager: new AppAttachMenuBotsManager,
+    appSeamlessLoginManager: new AppSeamlessLoginManager,
+    appThemesManager: new AppThemesManager,
+    appUsernamesManager: new AppUsernamesManager,
+    appChatInvitesManager: new AppChatInvitesManager,
+    appStoriesManager: new AppStoriesManager,
+    appBotsManager: new AppBotsManager,
+    appBoostsManager: new AppBoostsManager,
+    appStatisticsManager: new AppStatisticsManager,
+    appBusinessManager: new AppBusinessManager,
+    appTranslationsManager: new AppTranslationsManager,
+    appGifsManager: new AppGifsManager
+  };
+
+  type T = typeof managers;
+
+  for(const name in managers) {
+    const manager = managers[name as keyof T];
+    if(!manager) {
+      continue;
+    }
+
+    if((manager as AppMessagesManager).setManagers) {
+      (manager as AppMessagesManager).setManagers(managers as any);
+      delete (manager as AppMessagesManager).setManagers;
+    }
+
+    // @ts-ignore
+    ctx[name] = manager;
+  }
+
+  const promises: Array<Promise<(() => void) | void> | void>[] = [];
+  let names = Object.keys(managers) as (keyof T)[];
+  names.unshift(
+    'appUsersManager',
+    'appChatsManager',
+    'appNotificationsManager',
+    'appMessagesManager',
+    'dialogsStorage'
+  );
+  names = filterUnique(names);
+  for(const name of names) {
+    const manager = managers[name];
+    if((manager as any)?.after) {
+      // console.log('injecting after', name);
+      const result = (manager as any).after();
+      promises.push(result);
+
+      // if(result instanceof Promise) {
+      //   result.then(() => {
+      //     console.log('injected after', name);
+      //   });
+      // }
+    }
+  }
+
+  if(userId) {
+    managers.apiManager.setUserAuth(userId);
+  }
+
+  return Promise.all(promises).then(() => {
+    managers.rootScope.dispatchEventSingle('managers_ready');
+    return managers;
+  });
+}
+
+class Nothing {}
+
+export function createManagersMulti(appStoragesManager: AppStoragesManager, userId: UserId, dbInstance: string = 'default') {
+  const managers = {
+    appPeersManager: new AppPeersManager,
+    appChatsManager: new AppChatsManager,
+    appDocsManager: new AppDocsManager,
+    appPhotosManager: new AppPhotosManager,
+    appPollsManager: new AppPollsManager,
+    appUsersManager: new AppUsersManager,
+    appWebPagesManager: new AppWebPagesManager,
+    appDraftsManager: new AppDraftsManager(dbInstance),
+    appProfileManager: new AppProfileManager,
+    appNotificationsManager: new AppNotificationsManager,
+    apiUpdatesManager: new ApiUpdatesManager,
+    appAvatarsManager: new AppAvatarsManager,
+    appGroupCallsManager: new AppGroupCallsManager,
+    appCallsManager: new AppCallsManager,
+    appReactionsManager: new AppReactionsManager,
+    appMessagesManager: new AppMessagesManager(dbInstance),
+    appMessagesIdsManager: new AppMessagesIdsManager,
+    appPrivacyManager: new AppPrivacyManager,
+    appInlineBotsManager: new AppInlineBotsManager,
+    appStickersManager: new AppStickersManager,
+    referenceDatabase: new ReferenceDatabase,
+    appEmojiManager: new AppEmojiManager,
+    filtersStorage: new FiltersStorage,
+    dialogsStorage: new DialogsStorage,
+    apiManager: new ApiManager(dbInstance),
+    cryptoWorker: cryptoMessagePortInstances[dbInstance],
+    passwordManager: new PasswordManager,
+    apiFileManager: new ApiFileManager,
+    peersStorage: new PeersStorage,
+    thumbsStorage: new ThumbsStorage,
+    networkerFactory: new NetworkerFactory(dbInstance),
+    rootScope: new RootScope,
+    authorizer: new Authorizer,
+    dcConfigurator: new DcConfigurator,
+    timeManager: new TimeManager,
+    appStoragesManager: appStoragesManager,
+    appStateManager: appStateManagerInstances[dbInstance],
     appWebDocsManager: new AppWebDocsManager,
     appPaymentsManager: new AppPaymentsManager,
     appAttachMenuBotsManager: new AppAttachMenuBotsManager,

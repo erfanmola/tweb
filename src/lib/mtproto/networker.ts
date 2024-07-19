@@ -10,8 +10,8 @@
  */
 
 import {TLDeserialization, TLSerialization} from './tl_utils';
-import CryptoWorker from '../crypto/cryptoMessagePort';
-import sessionStorage from '../sessionStorage';
+import {cryptoMessagePortInstances} from '../crypto/cryptoMessagePort';
+import {sessionStorageInstances} from '../sessionStorage';
 import Schema from './schema';
 import {NetworkerFactory} from './networkerFactory';
 import {logger, LogTypes} from '../logger';
@@ -202,7 +202,10 @@ export default class MTPNetworker {
   private delays: typeof delays[keyof typeof delays];
   // private getNewTimeOffset: boolean;
 
+  private dbInstance: string;
+
   constructor(
+    dbInstance: string = 'default',
     private networkerFactory: NetworkerFactory,
     private timeManager: TimeManager,
     public dcId: number,
@@ -211,6 +214,8 @@ export default class MTPNetworker {
     serverSalt: Uint8Array,
     options: InvokeApiOptions = {}
   ) {
+    this.dbInstance = dbInstance;
+
     this.authKeyUint8 = convertToUint8Array(this.authKey);
     this.serverSalt = convertToUint8Array(serverSalt);
 
@@ -642,7 +647,7 @@ export default class MTPNetworker {
     log('check', this.longPollPending);
 
     const isClean = this.cleanupSent();
-    sessionStorage.get('dc').then((baseDcId) => {
+    sessionStorageInstances[this.dbInstance].get('dc').then((baseDcId) => {
       if(isClean && (
         baseDcId !== this.dcId ||
           (this.sleepAfter && Date.now() > this.sleepAfter)
@@ -981,7 +986,7 @@ export default class MTPNetworker {
     const x = isOut ? 0 : 8;
     const msgKeyLargePlain = bufferConcats(this.authKeyUint8.subarray(88 + x, 88 + x + 32), dataWithPadding);
 
-    const msgKeyLarge = await CryptoWorker.invokeCrypto('sha256', msgKeyLargePlain);
+    const msgKeyLarge = await cryptoMessagePortInstances[this.dbInstance].invokeCrypto('sha256', msgKeyLargePlain);
     const msgKey = new Uint8Array(msgKeyLarge).subarray(8, 24);
     return msgKey;
   };
@@ -995,11 +1000,11 @@ export default class MTPNetworker {
 
     sha2aText.set(msgKey, 0);
     sha2aText.set(this.authKeyUint8.subarray(x, x + 36), 16);
-    promises.push(CryptoWorker.invokeCrypto('sha256', sha2aText));
+    promises.push(cryptoMessagePortInstances[this.dbInstance].invokeCrypto('sha256', sha2aText));
 
     sha2bText.set(this.authKeyUint8.subarray(40 + x, 40 + x + 36), 0);
     sha2bText.set(msgKey, 36);
-    promises.push(CryptoWorker.invokeCrypto('sha256', sha2bText));
+    promises.push(cryptoMessagePortInstances[this.dbInstance].invokeCrypto('sha256', sha2bText));
 
     const results = await Promise.all(promises);
 
@@ -1237,7 +1242,7 @@ export default class MTPNetworker {
     const keyIv = await this.getAesKeyIv(msgKey, true);
     // this.log('after msg key iv')
 
-    const encryptedBytes = await CryptoWorker.invokeCrypto('aes-encrypt', dataWithPadding, keyIv[0], keyIv[1]);
+    const encryptedBytes = await cryptoMessagePortInstances[this.dbInstance].invokeCrypto('aes-encrypt', dataWithPadding, keyIv[0], keyIv[1]);
     // this.log('Finish encrypt')
 
     return {
@@ -1250,7 +1255,7 @@ export default class MTPNetworker {
     // this.log('get decrypted start')
     const keyIv = await this.getAesKeyIv(msgKey, false);
     // this.log('after msg key iv')
-    return CryptoWorker.invokeCrypto('aes-decrypt', encryptedData, keyIv[0], keyIv[1]);
+    return cryptoMessagePortInstances[this.dbInstance].invokeCrypto('aes-decrypt', encryptedData, keyIv[0], keyIv[1]);
   }
 
   private async getEncryptedOutput(message: MTMessage) {
@@ -1523,7 +1528,7 @@ export default class MTPNetworker {
   private applyServerSalt(newServerSalt: string) {
     const serverSalt = longToBytes(newServerSalt);
 
-    sessionStorage.set({
+    sessionStorageInstances[this.dbInstance].set({
       ['dc' + this.dcId + '_server_salt']: bytesToHex(serverSalt)
     });
 
@@ -1871,7 +1876,7 @@ export default class MTPNetworker {
         this.processMessageAck(message.first_msg_id);
         this.applyServerSalt(message.server_salt);
 
-        sessionStorage.get('dc').then((baseDcId) => {
+        sessionStorageInstances[this.dbInstance].get('dc').then((baseDcId) => {
           if(baseDcId === this.dcId && !this.isFileNetworker) {
             this.networkerFactory.updatesProcessor?.(message);
           }

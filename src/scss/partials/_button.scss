@@ -6,10 +6,10 @@
 
 $btn-menu-z-index: 4;
 
-.btn, 
+.btn,
 .btn-icon {
   background: none;
-	outline: none;
+  outline: none;
   border: none;
   cursor: pointer;
 
@@ -33,11 +33,13 @@ $btn-menu-z-index: 4;
   color: var(--secondary-text-color);
   background-color: transparent;
   border: none;
-  padding: .5rem;
+  padding: 0.5rem;
   position: relative;
   // overflow: hidden;
-  transition: color .15s ease-in-out, opacity .15s ease-in-out/* , background-color .15s ease-in-out */;
-  
+  transition:
+    color 0.15s ease-in-out,
+    opacity 0.15s ease-in-out /* , background-color .15s ease-in-out */;
+
   /* kostil */
   display: flex;
   align-items: center;
@@ -71,7 +73,7 @@ $btn-menu-z-index: 4;
   outline: none;
   cursor: pointer;
   box-shadow: none !important;
-  
+
   display: flex;
   align-items: center;
   justify-content: center;
@@ -80,15 +82,15 @@ $btn-menu-z-index: 4;
   @include hover() {
     background-color: var(--dark-primary-color);
   }
-  
+
   &.is-visible {
     --translateY: 0;
   }
 
   body.animation-level-0 & {
-		transition: none !important;
+    transition: none !important;
   }
-  
+
   &:disabled {
     opacity: 1 !important;
     pointer-events: all !important;
@@ -118,7 +120,7 @@ $btn-menu-z-index: 4;
   &,
   &-items {
     box-shadow: var(--menu-box-shadow);
-    padding: .3125rem 0;
+    padding: 0.3125rem 0;
     border-radius: $border-radius-medium;
   }
 
@@ -126,8 +128,11 @@ $btn-menu-z-index: 4;
   &-transition {
     visibility: hidden;
     opacity: 0;
-    transform: scale(.8);
-    transition: opacity var(--btn-menu-transition), transform var(--btn-menu-transition), visibility var(--btn-menu-transition);
+    transform: scale(0.8);
+    transition:
+      opacity var(--btn-menu-transition),
+      transform var(--btn-menu-transition),
+      visibility var(--btn-menu-transition);
 
     body.animation-level-0 & {
       transition: none;
@@ -161,7 +166,7 @@ $btn-menu-z-index: 4;
   .is-mobile & {
     --menu-background-color: var(--surface-color);
     --menu-backdrop-filter: none;
-    padding: .5rem 0;
+    padding: 0.5rem 0;
     background-color: var(--surface-color);
     backdrop-filter: none;
     min-width: auto;
@@ -274,9 +279,9 @@ $btn-menu-z-index: 4;
   }
 
   &-item {
-    --padding-vertical: .25rem;
-    --padding-left: .75rem;
-    --padding-right: .75rem;
+    --padding-vertical: 0.25rem;
+    --padding-left: 0.75rem;
+    --padding-right: 0.75rem;
     --icon-margin: 1.25rem;
     --icon-size: 1.25rem;
     display: flex;
@@ -295,10 +300,23 @@ $btn-menu-z-index: 4;
     text-align: start;
     font-size: var(--font-size-14);
     line-height: var(--line-height-14);
-    border-radius: .3125rem;
-    margin-inline: .3125rem;
+    border-radius: 0.3125rem;
+    margin-inline: 0.3125rem;
     font-weight: 500;
     transform: scale(1);
+
+    .btn-menu-item-account {
+      display: flex;
+      align-items: center;
+
+      .btn-menu-item-icon {
+        height: auto;
+      }
+
+      span.peer-title {
+        flex-grow: 1;
+      }
+    }
 
     &.a {
       .btn-menu-item-icon {
@@ -308,13 +326,13 @@ $btn-menu-z-index: 4;
         text-align: center;
       }
     }
-    
+
     @include animation-level(2) {
-      transition: transform .1s var(--transition-standard-easing);
+      transition: transform 0.1s var(--transition-standard-easing);
     }
 
     &:active {
-      transform: scale(.96);
+      transform: scale(0.96);
     }
 
     // background-blend-mode: overlay, normal;
@@ -339,12 +357,12 @@ $btn-menu-z-index: 4;
       color: currentColor;
       font-size: var(--icon-size);
       align-self: flex-start;
-      margin-top: .125rem;
+      margin-top: 0.125rem;
       padding: 0;
       position: relative;
 
       &-right {
-        margin-inline: .25rem -.5rem;
+        margin-inline: 0.25rem -0.5rem;
         font-size: calc(var(--icon-size) - 2px);
         display: flex;
         align-items: center;
@@ -352,7 +370,7 @@ $btn-menu-z-index: 4;
       }
 
       &.is-external {
-        --add: .25rem;
+        --add: 0.25rem;
         margin-top: 0;
       }
 
@@ -391,14 +409,14 @@ $btn-menu-z-index: 4;
       border-radius: 4px;
       background-color: var(--primary-color);
       color: #fff;
-      padding: .125rem .3125rem;
+      padding: 0.125rem 0.3125rem;
       flex: 0 0 auto;
       // margin-inline-end: .125rem;
-      transform: scale(.75);
+      transform: scale(0.75);
     }
 
     &-subtitle {
-      font-size: .875rem;
+      font-size: 0.875rem;
       color: var(--secondary-text-color);
     }
 
@@ -419,9 +437,9 @@ $btn-menu-z-index: 4;
     }
 
     .stacked-avatars {
-      --margin-right: -.6875rem;
+      --margin-right: -0.6875rem;
       flex: 0 0 auto;
-      inset-inline-end: .5rem;
+      inset-inline-end: 0.5rem;
       // margin-right: -1.5rem;
       // margin-left: 1rem;
       position: absolute;
@@ -436,7 +454,7 @@ $btn-menu-z-index: 4;
     &.is-secondary {
       height: auto !important;
       width: fit-content;
-      min-width: calc(100% - .625rem);
+      min-width: calc(100% - 0.625rem);
       max-width: 16.25rem;
 
       .btn-menu-item-text {
@@ -453,7 +471,7 @@ $btn-menu-z-index: 4;
 
     &.is-secondary {
       // --icon-margin: .5rem;
-      font-size: .75rem;
+      font-size: 0.75rem;
     }
 
     // &.is-smaller {
@@ -496,7 +514,8 @@ $btn-menu-z-index: 4;
     //background-color: rgba(0, 0, 0, .2);
   }
 
-  /* &-toggle  */&-overlay {
+  /* &-toggle  */
+  &-overlay {
     left: -100vw;
     right: -100vw;
     top: -100vh;
@@ -518,7 +537,7 @@ $btn-menu-z-index: 4;
     justify-content: center;
     border-bottom-left-radius: inherit;
     border-bottom-right-radius: inherit;
-    font-size: .875rem;
+    font-size: 0.875rem;
     color: currentColor;
     // cursor: default;
 
@@ -529,16 +548,16 @@ $btn-menu-z-index: 4;
 
   hr {
     padding: 0;
-    margin: .3125rem 0;
+    margin: 0.3125rem 0;
     display: block !important;
 
     margin-left: auto;
     margin-right: auto;
     width: calc(100% - 1.875rem);
-    opacity: .6;
+    opacity: 0.6;
   }
 
-  html:not(.is-mobile) & .badge {
+  html:not(.is-mobile) & .badge:not(.badge-menu-account) {
     background-color: transparent;
     color: var(--secondary-text-color);
   }
@@ -557,18 +576,20 @@ $btn-menu-z-index: 4;
 
     &-container/* ,
     &-bubble-big */ {
-      filter: drop-shadow(0 .125rem .5rem rgba(0, 0, 0, .24));
+      filter: drop-shadow(0 0.125rem 0.5rem rgba(0, 0, 0, 0.24));
     }
 
     @if $standalone {
       position: absolute;
-      transform: scale(.8);
+      transform: scale(0.8);
       transform-origin: bottom left;
 
       @include animation-level(2) {
-        transition: opacity var(--transition-standard-in), transform var(--transition-standard-in);
+        transition:
+          opacity var(--transition-standard-in),
+          transform var(--transition-standard-in);
       }
-  
+
       &.is-visible {
         opacity: 1;
         transform: scale(1);
@@ -579,7 +600,7 @@ $btn-menu-z-index: 4;
       --height: 2.5rem; // 3
       --bubble-side-offset: -2.5rem;
       --other-side-offset: -1rem;
-      --menu-offset: calc((var(--height) + .5rem) * -1);
+      --menu-offset: calc((var(--height) + 0.5rem) * -1);
       // position: absolute;
       margin-top: var(--menu-offset);
       // margin-inline-start: var(--other-side-offset);
@@ -607,7 +628,7 @@ $btn-menu-z-index: 4;
             transform-origin: bottom right !important;
           }
         }
-  
+
         .contextmenu.bottom-center + & {
           .btn-menu-reactions {
             transform-origin: bottom center !important;
@@ -651,7 +672,7 @@ $btn-menu-z-index: 4;
       //   flex-direction: column;
       //   margin-top: 0;
       //   margin-inline-start: var(--menu-offset);
-        
+
       //   .btn-menu-reactions {
       //     width: inherit;
       //     height: auto;
@@ -683,7 +704,7 @@ $btn-menu-z-index: 4;
       color: var(--secondary-text-color);
       text-align: center;
       line-height: 14px;
-      margin-top: .3125rem;
+      margin-top: 0.3125rem;
     }
 
     &-bubble {
@@ -714,22 +735,22 @@ $btn-menu-z-index: 4;
     }
 
     @if $no-scrollable {
-      $padding: .0625rem;
+      $padding: 0.0625rem;
       display: flex;
       align-items: center;
       padding: 0 #{$padding};
     } @else {
       .scrollable {
-        $padding: .0625rem;
+        $padding: 0.0625rem;
         position: relative;
         display: flex;
         border-radius: inherit;
-  
+
         &-x {
           align-items: center;
           padding: 0 #{$padding};
         }
-  
+
         &-y {
           align-items: center;
           padding: #{$padding} 0;
@@ -740,7 +761,7 @@ $btn-menu-z-index: 4;
 
     &-reaction {
       --size: 1.75rem; // 2.25
-      --padding-base: .25rem;
+      --padding-base: 0.25rem;
       --padding-vertical: 0rem;
       --padding-horizontal: var(--padding-base);
       width: calc(var(--size) + var(--padding-horizontal) * 2);
@@ -759,7 +780,7 @@ $btn-menu-z-index: 4;
           }
 
           html:not(.is-safari) body.animation-level-2 & {
-            transition: transform .1s linear;
+            transition: transform 0.1s linear;
           }
         }
       }
@@ -768,13 +789,13 @@ $btn-menu-z-index: 4;
         &-select {
           html.no-touch:not(.is-safari) & {
             transform: scale(1);
-  
+
             &:hover,
             &:active {
               transform: scale(1.25);
             }
           }
-    
+
           html.no-touch:not(.is-safari) body.animation-level-2 & {
             transition: transform var(--transition-standard-in);
           }
@@ -799,8 +820,8 @@ $btn-menu-z-index: 4;
       flex: 0 0 auto;
       width: 2rem;
       height: 2rem;
-      padding: 0 .125rem;
-      margin-inline-end: .25rem;
+      padding: 0 0.125rem;
+      margin-inline-end: 0.25rem;
     }
   }
 }
@@ -816,10 +837,10 @@ $btn-menu-z-index: 4;
   overflow: hidden;
   position: relative;
   padding: 0; // new
-  transition: .2s opacity;
- 
+  transition: 0.2s opacity;
+
   @include hover() {
-    transition: /* .2s background-color,  */.2s opacity;
+    transition: /* .2s background-color,  */ 0.2s opacity;
     background: var(--dark-primary-color);
   }
 
@@ -844,7 +865,7 @@ $btn-menu-z-index: 4;
   body.animation-level-0 & {
     transition: none;
   }
-  
+
   > svg,
   use {
     height: calc(100% - 20px);
@@ -907,22 +928,25 @@ $btn-menu-z-index: 4;
   line-height: 2.5rem;
   align-items: center;
   padding-inline: 1.125rem;
-  margin: .9375rem auto 1rem;
+  margin: 0.9375rem auto 1rem;
   border-radius: 1.25rem;
   display: flex;
 
   &-small {
     height: 1.875rem;
-    padding-inline: .75rem;
-    font-size: .9375rem;
+    padding-inline: 0.75rem;
+    font-size: 0.9375rem;
     width: auto;
     margin: 0;
-    border-radius: .9375rem;
+    border-radius: 0.9375rem;
     line-height: 1;
     font-weight: var(--font-weight-bold);
 
     @include animation-level(2) {
-      transition: width 0.2s, background-color .2s, color .2s;
+      transition:
+        width 0.2s,
+        background-color 0.2s,
+        color 0.2s;
     }
 
     &.active {
@@ -933,8 +957,8 @@ $btn-menu-z-index: 4;
 
   .button-icon {
     font-size: 1.5rem;
-    margin-inline-end: .375rem;
-    margin-inline-start: -.375rem;
+    margin-inline-end: 0.375rem;
+    margin-inline-start: -0.375rem;
   }
 }
 
@@ -945,7 +969,7 @@ $btn-menu-z-index: 4;
     left: auto;
     margin: 0;
     top: 10px;
-    
+
     .preloader-path {
       stroke: #fff;
     }
@@ -964,7 +988,7 @@ $btn-menu-z-index: 4;
   }
 
   .btn-menu {
-    margin-top: .5rem;
+    margin-top: 0.5rem;
   }
 }
 
@@ -974,7 +998,7 @@ $btn-menu-z-index: 4;
   height: var(--size);
   width: var(--size);
   line-height: var(--size);
-  
+
   @include respond-to(handhelds) {
     --size: 46px;
   }
@@ -1025,12 +1049,13 @@ $btn-menu-z-index: 4;
     &.disabled {
       pointer-events: none;
 
-      .call-button { // ! fix backdrop-filter transition
+      .call-button {
+        // ! fix backdrop-filter transition
         pointer-events: none;
 
         &,
         &-text {
-          opacity: .8;
+          opacity: 0.8;
         }
       }
     }
@@ -1038,8 +1063,8 @@ $btn-menu-z-index: 4;
 
   &-text {
     white-space: nowrap;
-    font-size: .875rem;
-    margin-top: .25rem;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
 
     @include animation-level(2) {
       transition: opacity var(--transition-standard-in);
@@ -1047,7 +1072,9 @@ $btn-menu-z-index: 4;
   }
 
   @include animation-level(2) {
-    transition: background-color var(--transition-standard-in), opacity var(--transition-standard-in);
+    transition:
+      background-color var(--transition-standard-in),
+      opacity var(--transition-standard-in);
   }
 
   & + &,

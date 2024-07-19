@@ -11,7 +11,7 @@
 
 import {MessageEntity, DraftMessage, MessagesSaveDraft, MessageReplyHeader, InputReplyTo, MessageMedia, WebPage, InputMedia} from '../../layer';
 import tsNow from '../../helpers/tsNow';
-import stateStorage from '../stateStorage';
+import {stateStorageInstances} from '../stateStorage';
 import assumeType from '../../helpers/assumeType';
 import {AppManager} from './manager';
 import getServerMessageId from './utils/messageId/getServerMessageId';
@@ -23,6 +23,13 @@ export type MyDraftMessage = DraftMessage.draftMessage;
 export class AppDraftsManager extends AppManager {
   private drafts: {[peerIdAndThreadId: string]: MyDraftMessage};
   private getAllDraftPromise: Promise<void>;
+
+  private dbInstance: string;
+
+  constructor(dbInstance: string = 'default') {
+    super();
+    this.dbInstance = dbInstance;
+  }
 
   protected after() {
     this.clear(true);
@@ -40,7 +47,7 @@ export class AppDraftsManager extends AppManager {
       }
     });
 
-    /* return  */stateStorage.get('drafts').then((drafts) => {
+    /* return  */stateStorageInstances[this.dbInstance].get('drafts').then((drafts) => {
       this.drafts = drafts || {};
     });
   }
@@ -75,7 +82,6 @@ export class AppDraftsManager extends AppManager {
         if(key.indexOf('_') !== -1) { // exclude threads
           continue;
         }
-
         const peerId = key.toPeerId();
         const dialog = this.appMessagesManager.getDialogOnly(peerId);
         if(!dialog) {
@@ -118,7 +124,7 @@ export class AppDraftsManager extends AppManager {
       delete this.drafts[key];
     }
 
-    stateStorage.set({
+    stateStorageInstances[this.dbInstance].set({
       drafts: this.drafts
     });
 

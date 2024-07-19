@@ -1972,6 +1972,8 @@
 "AddEffectMessageHint" = "Add an animated effect";
 "AnimatedEffectPremium" = "Subscribe to **Telegram Premium** to add this animated effect.";
 "StickerEffects" = "Effects from stickers";
+"DownloadSpeedLimited" = "Download speed limited";
+"UploadSpeedLimited" = "Upload speed limited";
 "AccountSettings.Filters" = "Chat Folders";
 "AccountSettings.Notifications" = "Notifications and Sounds";
 "AccountSettings.PrivacyAndSecurity" = "Privacy and Security";
@@ -2487,6 +2489,18 @@
 "Input.Quote.Expanded" = "Quote text will be fully visible";
 "CopyRestricted.Channel" = "Sorry, copying from this channel is disabled by its admins.";
 "CopyRestricted.Group" = "Sorry, copying from this group is disabled by its admins.";
+"Chat.DownloadLimit.Text_one" = "Subscribe to [Telegram Premium]() to increase download speeds %d time.";
+"Chat.DownloadLimit.Text_other" = "Subscribe to [Telegram Premium]() to increase download speeds %d times.";
+"Chat.UploadLimit.Text_one" = "Subscribe to [Telegram Premium]() to increase upload speeds %d time.";
+"Chat.UploadLimit.Text_other" = "Subscribe to [Telegram Premium]() to increase upload speeds %d times.";
+"AddAccount" = "Add Account";
+"LimitReachedAccounts" = "You have reached the limit of **%1$d** connected accounts. You can add more by subscribing to **Telegram Premium**.";
+"LimitReachedAccountsPremium" = "Sorry, you can't connect more than %1$d accounts. Logout from some that are currently connected.";
+"LimitReachedAccountsLocked" = "Sorry, you can't connect more than %1$d accounts. Logout from some that are currently connected. We are working to let you increase this limit in the future.";
+"ShowNotificationsFrom" = "Show Notifications From";
+"AllAccounts" = "All Accounts";
+"ShowNotificationsFromDescription" = "Turn this off if you want to receive notifications only from the account you are currently using.";
+"More" = "More";
 "Login.Title" = "Sign in to Telegram";
 "Login.PhoneLabel" = "Phone Number";
 "Login.PhoneLabelInvalid" = "Phone Number Invalid";

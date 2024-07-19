@@ -19,6 +19,8 @@ import RLottiePlayer from '../lib/rlottie/rlottiePlayer';
 import setBlankToAnchor from '../lib/richTextProcessor/setBlankToAnchor';
 import {attachClickEvent} from '../helpers/dom/clickEvent';
 import Icon from '../components/icon';
+import ButtonIcon from '../components/buttonIcon';
+import instanceManager from '../config/instances';
 
 let authSentCode: AuthSentCode.authSentCode = null;
 
@@ -110,6 +112,25 @@ const submitCode = (code: string) => {
 
 const onFirstMount = () => {
   page.pageEl.querySelector('.input-wrapper').append(codeInputField.container);
+
+  if(instanceManager.getLoggedInInstanceIDs().length > 0) {
+    const cancelButtonContainer = document.createElement('div');
+    const cancelButton = ButtonIcon('close');
+
+    cancelButton.addEventListener('click', async() => {
+      let lastInstance = instanceManager.getLoggedInInstanceIDs().find(item => item == instanceManager.getLastInstanceId());
+      if(!(lastInstance)) {
+        lastInstance = instanceManager.getLoggedInInstanceIDs()[0];
+      }
+      await instanceManager.destroyInstance(instanceManager.getActiveInstanceID());
+      await instanceManager.switchToInstance(lastInstance);
+    });
+
+    cancelButtonContainer.append(cancelButton);
+    const pageElement = page.pageEl;
+    const imageDiv = pageElement.querySelector('.auth-image') as HTMLDivElement;
+    imageDiv.parentElement.prepend(cancelButtonContainer);
+  }
 
   const editButton = page.pageEl.querySelector('.phone-edit') as HTMLElement;
   editButton.append(Icon('edit'));

@@ -2844,7 +2844,15 @@ const lang = {
   'Chat.UploadLimit.Text': {
     'one_value': 'Subscribe to [Telegram Premium]() to increase upload speeds %d time.',
     'other_value': 'Subscribe to [Telegram Premium]() to increase upload speeds %d times.'
-  }
+  },
+  'AddAccount': 'Add Account',
+  'LimitReachedAccounts': 'You have reached the limit of **%1$d** connected accounts. You can add more by subscribing to **Telegram Premium**.',
+  'LimitReachedAccountsPremium': 'Sorry, you can\'t connect more than %1$d accounts. Logout from some that are currently connected.',
+  'LimitReachedAccountsLocked': 'Sorry, you can\'t connect more than %1$d accounts. Logout from some that are currently connected. We are working to let you increase this limit in the future.',
+  'ShowNotificationsFrom': 'Show Notifications From',
+  'AllAccounts': 'All Accounts',
+  'ShowNotificationsFromDescription': 'Turn this off if you want to receive notifications only from the account you are currently using.',
+  'More': 'More'
 };
 
 export default lang;

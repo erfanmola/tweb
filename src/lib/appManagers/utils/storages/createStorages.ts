@@ -7,7 +7,7 @@
 import type {Chat} from '../../../../layer';
 import type {Dialog} from '../../appMessagesManager';
 import type {User} from '../../appUsersManager';
-import DATABASE_STATE from '../../../../config/databases/state';
+import DATABASE_STATE, {DBState} from '../../../../config/databases/state';
 import AppStorage from '../../../storage';
 
 export type StoragesStorages = {
@@ -16,12 +16,12 @@ export type StoragesStorages = {
   dialogs: AppStorage<Record<PeerId, Dialog>, typeof DATABASE_STATE>
 };
 
-export default function createStorages() {
+export default function createStorages(dbInstance: string = 'default') {
   const names: (keyof StoragesStorages)[] = ['users', 'chats', 'dialogs'];
   const storages: StoragesStorages = {} as any;
   for(const name of names) {
     // @ts-ignore
-    storages[name] = new AppStorage(DATABASE_STATE, name);
+    storages[name] = new AppStorage(DBState(dbInstance), name);
   }
 
   return storages;

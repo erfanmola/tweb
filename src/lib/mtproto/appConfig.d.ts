@@ -104,6 +104,8 @@ export interface MTAppConfig {
   new_noncontact_peers_require_premium_without_ownpremium?: boolean;
   stars_purchase_blocked?:                   boolean;
   can_edit_factcheck?:                       boolean;
+  accounts_limit_default?:                   number;
+  accounts_limit_premium?:                   number;
 }
 
 export interface EmojiesSendDiceSuccess {

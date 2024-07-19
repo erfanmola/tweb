@@ -5,19 +5,29 @@
  */
 
 import type {State} from '../../config/state';
-import rootScope from '../rootScope';
-import stateStorage from '../stateStorage';
+import {rootScopeInstances} from '../rootScope';
+import {StateStorage, stateStorageInstances} from '../stateStorage';
 import setDeepProperty, {splitDeepPath} from '../../helpers/object/setDeepProperty';
 import MTProtoMessagePort from '../mtproto/mtprotoMessagePort';
 
 export class AppStateManager {
   private state: State = {} as any;
-  private storage = stateStorage;
+  private storage;
 
   // ! for mtproto worker use only
   public newVersion: string;
   public oldVersion: string;
   public userId: UserId;
+
+  private dbInstance: string;
+
+  constructor(dbInstance: string = 'default') {
+    this.dbInstance = dbInstance;
+    if(!(dbInstance in stateStorageInstances)) {
+      stateStorageInstances[dbInstance] = new StateStorage(dbInstance);
+    }
+    this.storage = stateStorageInstances[dbInstance];
+  }
 
   public getState() {
     return Promise.resolve(this.state);
@@ -28,6 +38,7 @@ export class AppStateManager {
 
     const first = splitDeepPath(key)[0] as keyof State;
     if(first === 'settings') {
+      const rootScope = rootScopeInstances[this.dbInstance];
       rootScope.dispatchEvent('settings_updated', {key, value, settings: this.state.settings});
     }
 
@@ -63,3 +74,7 @@ export class AppStateManager {
 
 const appStateManager = new AppStateManager();
 export default appStateManager;
+
+export const appStateManagerInstances: {[key: string]: AppStateManager} = {
+  'default': appStateManager
+}

@@ -4,16 +4,18 @@
  * https://github.com/morethanwords/tweb/blob/master/LICENSE
  */
 
-import ctx from '../../environment/ctx';
+import {Config, DataJSON, HelpAppConfig, HelpPeerColors, MethodDeclMap, User} from '../../layer';
+import instanceManager from '../../config/instances';
+
+import {AppManager} from '../appManagers/manager';
+import {InvokeApiOptions} from '../../types';
+import {MTAppConfig} from './appConfig';
+import {MTMessage} from './networker';
+import {UserAuth} from './mtproto_config';
 import assumeType from '../../helpers/assumeType';
 import callbackify from '../../helpers/callbackify';
+import ctx from '../../environment/ctx';
 import {ignoreRestrictionReasons} from '../../helpers/restrictions';
-import {Config, DataJSON, HelpAppConfig, HelpPeerColors, MethodDeclMap, User} from '../../layer';
-import {InvokeApiOptions} from '../../types';
-import {AppManager} from '../appManagers/manager';
-import {MTAppConfig} from './appConfig';
-import {UserAuth} from './mtproto_config';
-import {MTMessage} from './networker';
 
 type HashResult = {
   hash: number,
@@ -28,7 +30,7 @@ export type ApiLimitType = 'pin' | 'folderPin' | 'folders' |
   'favedStickers' | 'reactions' | 'bio' | 'topicPin' | 'caption' |
   'chatlistsJoined' | 'chatlistInvites' | 'channels' | 'links' |
   'gifs' | 'folderPeers' | 'uploadFileParts' | 'recommendedChannels' |
-  'savedPin';
+  'savedPin' | 'accounts';
 
 export default abstract class ApiManagerMethods extends AppManager {
   private afterMessageIdTemp: number;
@@ -385,10 +387,17 @@ export default abstract class ApiManagerMethods extends AppManager {
         folderPeers: ['dialog_filters_chats_limit_default', 'dialog_filters_chats_limit_premium'],
         uploadFileParts: ['upload_max_fileparts_default', 'upload_max_fileparts_premium'],
         recommendedChannels: ['recommended_channels_limit_default', 'recommended_channels_limit_premium'],
-        savedPin: ['saved_dialogs_pinned_limit_default', 'saved_dialogs_pinned_limit_premium']
+        savedPin: ['saved_dialogs_pinned_limit_default', 'saved_dialogs_pinned_limit_premium'],
+        accounts: ['accounts_limit_default', 'accounts_limit_premium']
       };
 
       isPremium ??= this.rootScope.premium;
+
+      // What? Blame levlam for not providing it as an appConfig item
+      // This is nothing TBH, I have even used some shit direct localStorage methods
+      if(type === 'accounts') {
+        return (isPremium ? instanceManager.LIMIT_ACCOUNTS_PREMIUM : instanceManager.LIMIT_ACCOUNTS_DEFAULT);
+      }
 
       const a = map[type];
       const key = Array.isArray(a) ? a[isPremium ? 1 : 0] : a;

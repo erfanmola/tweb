@@ -16,6 +16,7 @@ import {MUTE_UNTIL} from '../../../lib/mtproto/mtproto_config';
 import apiManagerProxy from '../../../lib/mtproto/mtprotoworker';
 import SettingSection from '../../settingSection';
 import {joinDeepPath} from '../../../helpers/object/setDeepProperty';
+import instanceManager from '../../../config/instances';
 
 type InputNotifyKey = Exclude<InputNotifyPeer['_'], 'inputNotifyPeer' | 'inputNotifyForumTopic'>;
 
@@ -89,6 +90,27 @@ export default class AppNotificationsTab extends SliderSuperTabEventable {
         });
       });
     };
+
+    if(instanceManager.getPassiveInstanceIDs().length > 0) {
+      const sectionNotificationsFromAllAccounts = new SettingSection({
+        name: 'ShowNotificationsFrom',
+        caption: 'ShowNotificationsFromDescription'
+      });
+
+      const enableFromAllAccountsRow = new Row({
+        titleLangKey: 'AllAccounts',
+        checkboxField: new CheckboxField({
+          checked: instanceManager.isGlobalNotificationsEnabled(),
+          toggle: true,
+          listenerSetter: this.listenerSetter
+        })
+      });
+
+      this.listenerSetter.add(enableFromAllAccountsRow.checkboxField.input)('change', instanceManager.toggleGlobalNotificationsHandler);
+
+      sectionNotificationsFromAllAccounts.content.append(enableFromAllAccountsRow.container);
+      this.scrollable.append(sectionNotificationsFromAllAccounts.container);
+    }
 
     NotifySection({
       name: 'NotificationsPrivateChats',

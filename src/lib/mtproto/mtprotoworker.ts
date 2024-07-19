@@ -14,10 +14,10 @@ import type ThumbsStorage from '../storages/thumbs';
 import type {AppReactionsManager} from '../appManagers/appReactionsManager';
 import type {MessagesStorageKey} from '../appManagers/appMessagesManager';
 import type {AppAvatarsManager, PeerPhotoSize} from '../appManagers/appAvatarsManager';
-import rootScope from '../rootScope';
+import {rootScopeInstances} from '../rootScope';
 import webpWorkerController from '../webp/webpWorkerController';
 import {MOUNT_CLASS_TO} from '../../config/debug';
-import sessionStorage from '../sessionStorage';
+import {sessionStorageInstances} from '../sessionStorage';
 import webPushApiManager from './webPushApiManager';
 import appRuntimeManager from '../appManagers/appRuntimeManager';
 import telegramMeWebManager from './telegramMeWebManager';
@@ -26,7 +26,7 @@ import ENVIRONMENT from '../../environment';
 import loadState from '../appManagers/utils/state/loadState';
 import opusDecodeController from '../opusDecodeController';
 import MTProtoMessagePort from './mtprotoMessagePort';
-import cryptoMessagePort from '../crypto/cryptoMessagePort';
+import {CryptoMessagePort, cryptoMessagePortInstances} from '../crypto/cryptoMessagePort';
 import SuperMessagePort from './superMessagePort';
 import IS_SHARED_WORKER_SUPPORTED from '../../environment/sharedWorkerSupport';
 import toggleStorages from '../../helpers/toggleStorages';
@@ -91,7 +91,7 @@ export type TabState = {
   idleStartTime: number,
 };
 
-class ApiManagerProxy extends MTProtoMessagePort {
+export class ApiManagerProxy extends MTProtoMessagePort {
   // private worker: /* Window */Worker;
   // private sockets: Map<number, Socket> = new Map();
   private mirrors: Mirrors;
@@ -114,8 +114,12 @@ class ApiManagerProxy extends MTProtoMessagePort {
 
   private appConfig: MaybePromise<MTAppConfig>;
 
-  constructor() {
+  private dbInstance: string;
+
+  constructor(dbInstance: string = 'default') {
     super();
+
+    this.dbInstance = dbInstance;
 
     this.mirrors = {
       state: undefined,
@@ -205,12 +209,12 @@ class ApiManagerProxy extends MTProtoMessagePort {
 
       event: ({name, args}) => {
         // @ts-ignore
-        rootScope.dispatchEventSingle(name, ...args);
+        rootScopeInstances[this.dbInstance].dispatchEventSingle(name, ...args);
       },
 
       localStorageProxy: (payload) => {
         const storageTask = payload;
-        return (sessionStorage[storageTask.type] as any)(...storageTask.args);
+        return (sessionStorageInstances[this.dbInstance][storageTask.type] as any)(...storageTask.args);
       },
 
       mirror: this.onMirrorTask,
@@ -280,20 +284,20 @@ class ApiManagerProxy extends MTProtoMessagePort {
     //   }
     // });
 
-    rootScope.addEventListener('language_change', (language) => {
-      rootScope.managers.networkerFactory.setLanguage(language);
-      rootScope.managers.appAttachMenuBotsManager.onLanguageChange();
+    rootScopeInstances[this.dbInstance].addEventListener('language_change', (language) => {
+      rootScopeInstances[this.dbInstance].managers.networkerFactory.setLanguage(language);
+      rootScopeInstances[this.dbInstance].managers.appAttachMenuBotsManager.onLanguageChange();
     });
 
     window.addEventListener('online', () => {
-      rootScope.managers.networkerFactory.forceReconnectTimeout();
+      rootScopeInstances[this.dbInstance].managers.networkerFactory.forceReconnectTimeout();
     });
 
-    rootScope.addEventListener('logging_out', () => {
+    rootScopeInstances[this.dbInstance].addEventListener('logging_out', () => {
       const toClear: CacheStorageDbName[] = ['cachedFiles', 'cachedStreamChunks'];
       Promise.all([
         toggleStorages(false, true),
-        sessionStorage.clear(),
+        sessionStorageInstances[this.dbInstance].clear(),
         Promise.race([
           telegramMeWebManager.setAuthorized(false),
           pause(3000)
@@ -502,19 +506,23 @@ class ApiManagerProxy extends MTProtoMessagePort {
 
     const worker: SharedWorker | Worker = new Worker(
       new URL('../crypto/crypto.worker.ts', import.meta.url),
-      {type: 'module'}
+      {type: 'module', name: this.dbInstance}
     );
 
     originals.forEach((w) => window[w.name as any] = w as any);
 
     const originalUrl = (worker as any).url;
 
-    const createWorker = (url: string) => new constructor(url, {type: 'module'});
-    const attachWorkerToPort = (worker: SharedWorker | Worker) => this.attachWorkerToPort(worker, cryptoMessagePort, 'crypto');
+    if(!(this.dbInstance in cryptoMessagePortInstances)) {
+      cryptoMessagePortInstances[this.dbInstance] = new CryptoMessagePort();
+    }
+
+    const createWorker = (url: string) => new constructor(url, {type: 'module', name: this.dbInstance});
+    const attachWorkerToPort = (worker: SharedWorker | Worker) => this.attachWorkerToPort(worker, cryptoMessagePortInstances[this.dbInstance], 'crypto');
     const constructor = IS_SHARED_WORKER_SUPPORTED ? SharedWorker : Worker;
 
     // let cryptoWorkers = workers.length;
-    cryptoMessagePort.addEventListener('port', (payload, source, event) => {
+    cryptoMessagePortInstances[this.dbInstance].addEventListener('port', (payload, source, event) => {
       this.invokeVoid('cryptoPort', undefined, undefined, [event.ports[0]]);
       // .then((attached) => {
       //   if(!attached && cryptoWorkers-- > 1) {
@@ -547,12 +555,12 @@ class ApiManagerProxy extends MTProtoMessagePort {
     if(IS_SHARED_WORKER_SUPPORTED) {
       worker = new SharedWorker(
         new URL('./mtproto.worker.ts', import.meta.url),
-        {type: 'module'}
+        {type: 'module', name: this.dbInstance}
       );
     } else {
       worker = new Worker(
         new URL('./mtproto.worker.ts', import.meta.url),
-        {type: 'module'}
+        {type: 'module', name: this.dbInstance}
       );
     }
 
@@ -581,11 +589,11 @@ class ApiManagerProxy extends MTProtoMessagePort {
 
   private loadState() {
     return Promise.all([
-      loadState().then((stateResult) => {
+      loadState(this.dbInstance).then((stateResult) => {
         this.newVersion = stateResult.newVersion;
         this.oldVersion = stateResult.oldVersion;
         this.mirrors['state'] = stateResult.state;
-        setAppStateSilent(stateResult.state);
+        setAppStateSilent(stateResult.state, null, this.dbInstance);
         return stateResult;
       })
       // loadStorages(createStorages()),
@@ -593,9 +601,10 @@ class ApiManagerProxy extends MTProtoMessagePort {
   }
 
   public sendState() {
+    const dbInstance = this.dbInstance;
     return this.loadState().then((result) => {
       const [stateResult] = result;
-      this.invoke('state', {...stateResult, userId: rootScope.myId.toUserId()});
+      this.invoke('state', {...stateResult, userId: rootScopeInstances[dbInstance].myId.toUserId()});
       return result;
     });
   }
@@ -605,7 +614,7 @@ class ApiManagerProxy extends MTProtoMessagePort {
       return;
     }
 
-    return cryptoMessagePort.invokeCrypto(method, ...args);
+    return cryptoMessagePortInstances[this.dbInstance].invokeCrypto(method, ...args);
   }
 
   public async toggleStorages(enabled: boolean, clearWrite: boolean) {
@@ -638,7 +647,7 @@ class ApiManagerProxy extends MTProtoMessagePort {
   }
 
   public getAvailableReactions() {
-    return this.mirrors.availableReactions ||= rootScope.managers.appReactionsManager.getAvailableReactions();
+    return this.mirrors.availableReactions ||= rootScopeInstances[this.dbInstance].managers.appReactionsManager.getAvailableReactions();
   }
 
   public getReaction(reaction: string) {
@@ -732,7 +741,7 @@ class ApiManagerProxy extends MTProtoMessagePort {
 
   public loadAvatar(peerId: PeerId, photo: UserProfilePhoto.userProfilePhoto | ChatPhoto.chatPhoto, size: PeerPhotoSize) {
     const saved = this.mirrors.avatars[peerId] ??= {};
-    return saved[size] ??= rootScope.managers.appAvatarsManager.loadAvatar(peerId, photo, size);
+    return saved[size] ??= rootScopeInstances[this.dbInstance].managers.appAvatarsManager.loadAvatar(peerId, photo, size);
   }
 
   public getAppConfig(overwrite?: boolean) {
@@ -741,7 +750,7 @@ class ApiManagerProxy extends MTProtoMessagePort {
     }
 
     if(!this.appConfig) {
-      const promise = rootScope.managers.apiManager.getAppConfig().then((appConfig) => {
+      const promise = rootScopeInstances[this.dbInstance].managers.apiManager.getAppConfig().then((appConfig) => {
         if(this.appConfig === promise) {
           this.appConfig = appConfig;
         }
@@ -757,7 +766,7 @@ class ApiManagerProxy extends MTProtoMessagePort {
 
   public isPremiumFeaturesHidden(): MaybePromise<boolean> {
     return callbackify(this.isPremiumPurchaseBlocked(), (isPremiumPurchaseBlocked) => {
-      return isPremiumPurchaseBlocked && !rootScope.premium;
+      return isPremiumPurchaseBlocked && !rootScopeInstances[this.dbInstance].premium;
     });
   }
 
@@ -789,8 +798,12 @@ class ApiManagerProxy extends MTProtoMessagePort {
   };
 }
 
-interface ApiManagerProxy extends MTProtoMessagePort<true> {}
+export interface ApiManagerProxy extends MTProtoMessagePort<true> {}
 
 const apiManagerProxy = new ApiManagerProxy();
 MOUNT_CLASS_TO.apiManagerProxy = apiManagerProxy;
 export default apiManagerProxy;
+
+export const apiManagerProxyInstances: {[key: string]: ApiManagerProxy} = {
+  'default': apiManagerProxy
+}

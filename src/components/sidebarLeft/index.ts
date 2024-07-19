@@ -5,7 +5,7 @@
  */
 
 import appImManager from '../../lib/appManagers/appImManager';
-import rootScope from '../../lib/rootScope';
+import rootScope, {rootScopeInstances} from '../../lib/rootScope';
 import {SearchGroup} from '../appSearch';
 import Scrollable, {ScrollableX} from '../scrollable';
 import InputSearch from '../inputSearch';
@@ -22,7 +22,7 @@ import AppArchivedTab from './tabs/archivedTab';
 import AppAddMembersTab from './tabs/addMembers';
 import I18n, {i18n} from '../../lib/langPack';
 import AppPeopleNearbyTab from './tabs/peopleNearby';
-import {ButtonMenuItemOptions} from '../buttonMenu';
+import ButtonMenu, {ButtonMenuItemOptions} from '../buttonMenu';
 import CheckboxField from '../checkboxField';
 import {IS_MOBILE_SAFARI} from '../../environment/userAgent';
 import appNavigationController, {NavigationItem} from '../appNavigationController';
@@ -73,6 +73,11 @@ import wrapEmojiStatus from '../wrappers/emojiStatus';
 import {makeMediaSize} from '../../helpers/mediaSize';
 import ReactionElement from '../chat/reaction';
 import setBlankToAnchor from '../../lib/richTextProcessor/setBlankToAnchor';
+import instanceManager from '../../config/instances';
+import {AvatarNew} from '../avatarNew';
+import PeerTitle from '../peerTitle';
+import showLimitPopup from '../popups/limit';
+import {getProxiedManagersInstance} from '../../lib/appManagers/getProxiedManagers';
 
 export const LEFT_COLUMN_ACTIVE_CLASSNAME = 'is-left-column-shown';
 
@@ -83,6 +88,8 @@ export class AppSidebarLeft extends SidebarSlider {
 
   public archivedCount: HTMLSpanElement;
   public rect: DOMRect;
+
+  public accountUnreadCount: HTMLSpanElement[] = [];
 
   private newBtnMenu: HTMLElement;
 
@@ -156,117 +163,231 @@ export class AppSidebarLeft extends SidebarSlider {
       themeCheckboxField.setValueSilently(themeController.getTheme().name === 'night');
     });
 
-    const menuButtons: (ButtonMenuItemOptions & {verify?: () => boolean | Promise<boolean>})[] = [{
-      icon: 'savedmessages',
-      text: 'SavedMessages',
-      onClick: () => {
-        setTimeout(() => { // menu doesn't close if no timeout (lol)
-          appImManager.setPeer({
-            peerId: appImManager.myId
+    const accountMenuButtons: (ButtonMenuItemOptions & {verify?: () => boolean | Promise<boolean>})[] = Array.from({length: instanceManager.LIMIT_ACCOUNTS_PREMIUM}).map((_v, i) => {
+      const accountElement = document.createElement('div');
+      accountElement.classList.add('btn-menu-item-account');
+
+      const counterBadge = createBadge('span', 0, 'gray');
+      counterBadge.classList.add('badge-menu-account');
+      this.accountUnreadCount.push(counterBadge);
+
+      (async() => {
+        await instanceManager.waitForInstances();
+
+        const instances = instanceManager.getLoggedInInstanceIDs();
+
+        const instanceId = instances[i];
+        if(!instanceId) return;
+
+        const instanceIndex = instanceId == instanceManager.getActiveInstanceID() ? 'default' : instanceId;
+        const managers = getProxiedManagersInstance(instanceIndex);
+
+        const self = await managers.appUsersManager.getSelf();
+
+        const accountElementAvatar = AvatarNew({
+          instanceId: instanceIndex,
+          size: 24,
+          peerId: self.id.toPeerId()
+        });
+        const accountElementTitle = new PeerTitle({instanceId: instanceIndex, peerId: self.id.toPeerId()});
+
+        const accountElementAvatarContainer = document.createElement('div');
+        accountElementAvatarContainer.classList.add('btn-menu-item-icon');
+        accountElementAvatarContainer.appendChild(accountElementAvatar.element as Node);
+
+        const unread = await managers.dialogsStorage.getFolderUnreadCount(0);
+
+        const totalUnread = unread.unreadCount + unread.unreadUnmutedCount;
+        instanceManager.setUnreadStats(instanceId, unread.unreadCount, unread.unreadUnmutedCount);
+        setBadgeContent(counterBadge, totalUnread ? '' + formatNumber(totalUnread, 1) : '');
+        if(unread.unreadUnmutedCount > 0) {
+          counterBadge.classList.remove('badge-gray');
+          counterBadge.classList.add('badge-primary');
+        } else {
+          counterBadge.classList.remove('badge-primary');
+          counterBadge.classList.add('badge-gray');
+        }
+
+        rootScopeInstances[instanceIndex].addEventListener('folder_unread', (folder) => {
+          if(folder.id === 0) {
+            const totalUnread = folder.unreadPeerIds.size + folder.unreadUnmutedPeerIds.size;
+            instanceManager.setUnreadStats(instanceId, folder.unreadPeerIds.size, folder.unreadUnmutedPeerIds.size);
+            setBadgeContent(counterBadge, totalUnread ? '' + formatNumber(totalUnread, 1) : '');
+            if(folder.unreadUnmutedPeerIds.size > 0) {
+              counterBadge.classList.remove('badge-gray');
+              counterBadge.classList.add('badge-primary');
+            } else {
+              counterBadge.classList.remove('badge-primary');
+              counterBadge.classList.add('badge-gray');
+            }
+          }
+        });
+
+        accountElement.append(accountElementAvatarContainer);
+        accountElement.append(accountElementTitle.element);
+        accountElement.append(counterBadge);
+      })();
+
+      return {
+        textElement: accountElement,
+        onClick: async() => {
+          if(instanceManager.getActiveInstanceID() == instanceManager.getLoggedInInstanceIDs()[i]) return;
+          await instanceManager.switchToInstance(instanceManager.getLoggedInInstanceIDs()[i]);
+        },
+        verify: async() => {
+          return instanceManager.getLoggedInInstanceIDs().length > i;
+        }
+      };
+    });
+
+    const menuButtonsMore: (ButtonMenuItemOptions & {verify?: () => boolean | Promise<boolean>})[] = [
+      {
+        icon: 'darkmode',
+        text: 'DarkMode',
+        onClick: () => {
+
+        },
+        checkboxField: themeCheckboxField
+      }, {
+        icon: 'animations',
+        text: 'Animations',
+        separatorDown: true,
+        onClick: () => {},
+        checkboxField: new CheckboxField({
+          toggle: true,
+          checked: liteMode.isAvailable('animations'),
+          stateKey: joinDeepPath('settings', 'liteMode', 'animations'),
+          stateValueReverse: true
+        }),
+        verify: () => !liteMode.isEnabled()
+      }, {
+        icon: 'animations',
+        text: 'LiteMode.Title',
+        separatorDown: true,
+        onClick: () => {
+          this.createTab(AppPowerSavingTab).open();
+        },
+        verify: () => liteMode.isEnabled()
+      }, {
+        icon: 'char' as Icon,
+        className: 'a',
+        text: 'ChatList.Menu.SwitchTo.A',
+        onClick: () => {
+          Promise.all([
+            sessionStorage.set({kz_version: 'Z'}),
+            sessionStorage.delete('tgme_sync')
+          ]).then(() => {
+            location.href = 'https://web.telegram.org/a/';
           });
-        }, 0);
-      }
-    }, btnArchive, {
-      icon: 'stories',
-      text: 'MyStories.Title',
-      onClick: () => {
-        this.createTab(AppMyStoriesTab).open();
+        },
+        verify: () => App.isMainDomain
+      }, {
+        icon: 'help',
+        text: 'TelegramFeatures',
+        onClick: () => {
+          const url = I18n.format('TelegramFeaturesUrl', true);
+          appImManager.openUrl(url);
+        }
+      }, {
+        icon: 'bug',
+        text: 'ReportBug',
+        onClick: () => {
+          const a = document.createElement('a');
+          setBlankToAnchor(a);
+          a.href = 'https://bugs.telegram.org/?tag_ids=40&sort=time';
+          document.body.append(a);
+          a.click();
+          setTimeout(() => {
+            a.remove();
+          }, 0);
+        }
       },
-      verify: () => !TEST_NO_STORIES
-    }, {
-      icon: 'user',
-      text: 'Contacts',
-      onClick: onContactsClick
-    }, IS_GEOLOCATION_SUPPORTED ? {
-      icon: 'group',
-      text: 'PeopleNearby',
-      onClick: () => {
-        this.createTab(AppPeopleNearbyTab).open();
+      /* {
+        icon: 'char w',
+        text: 'ChatList.Menu.SwitchTo.Webogram',
+        onClick: () => {
+          sessionStorage.delete('tgme_sync').then(() => {
+            location.href = 'https://web.telegram.org/?legacy=1';
+          });
+        },
+        verify: () => App.isMainDomain
+      }, */ {
+        icon: 'plusround',
+        text: 'PWA.Install',
+        onClick: () => {
+          const installPrompt = getInstallPrompt();
+          installPrompt?.();
+        },
+        verify: () => !!getInstallPrompt()
       }
-    } : undefined, {
-      icon: 'settings',
-      text: 'Settings',
-      onClick: () => {
-        this.createTab(AppSettingsTab).open();
-      }
-    }, {
-      icon: 'darkmode',
-      text: 'DarkMode',
-      onClick: () => {
+    ];
 
-      },
-      checkboxField: themeCheckboxField
-    }, {
-      icon: 'animations',
-      text: 'Animations',
-      onClick: () => {
+    const menuButtons: (ButtonMenuItemOptions & {verify?: () => boolean | Promise<boolean>})[] = [
+      ...accountMenuButtons,
+      {
+        icon: 'plus',
+        text: 'AddAccount',
+        onClick: () => {
+          setTimeout(async() => {
+            if(
+              (!(rootScope.premium) && instanceManager.getLoggedInInstanceIDs().length >= instanceManager.LIMIT_ACCOUNTS_DEFAULT) ||
+              (rootScope.premium && instanceManager.getLoggedInInstanceIDs().length >= instanceManager.LIMIT_ACCOUNTS_PREMIUM)
+            ) {
+              showLimitPopup('accounts');
+              return;
+            }
 
+            await instanceManager.switchToInstance(null);
+          }, 0);
+        }
+      }, {
+        icon: 'savedmessages',
+        text: 'SavedMessages',
+        separator: true,
+        onClick: () => {
+          setTimeout(() => { // menu doesn't close if no timeout (lol)
+            appImManager.setPeer({
+              peerId: appImManager.myId
+            });
+          }, 0);
+        }
+      }, btnArchive, {
+        icon: 'stories',
+        text: 'MyStories.Title',
+        onClick: () => {
+          this.createTab(AppMyStoriesTab).open();
+        },
+        verify: () => !TEST_NO_STORIES
+      }, {
+        icon: 'user',
+        text: 'Contacts',
+        onClick: onContactsClick
+      }, IS_GEOLOCATION_SUPPORTED ? {
+        icon: 'group',
+        text: 'PeopleNearby',
+        onClick: () => {
+          this.createTab(AppPeopleNearbyTab).open();
+        }
+      } : undefined, {
+        icon: 'settings',
+        text: 'Settings',
+        separator: true,
+        onClick: () => {
+          this.createTab(AppSettingsTab).open();
+        }
+      }, {
+        icon: 'more',
+        text: 'More',
+        onClick: () => {},
+        keepOpen: true,
+        inner: () => {
+          return {
+            buttons: menuButtonsMore
+          }
+        }
       },
-      checkboxField: new CheckboxField({
-        toggle: true,
-        checked: liteMode.isAvailable('animations'),
-        stateKey: joinDeepPath('settings', 'liteMode', 'animations'),
-        stateValueReverse: true
-      }),
-      verify: () => !liteMode.isEnabled()
-    }, {
-      icon: 'animations',
-      text: 'LiteMode.Title',
-      onClick: () => {
-        this.createTab(AppPowerSavingTab).open();
-      },
-      verify: () => liteMode.isEnabled()
-    }, {
-      icon: 'help',
-      text: 'TelegramFeatures',
-      onClick: () => {
-        const url = I18n.format('TelegramFeaturesUrl', true);
-        appImManager.openUrl(url);
-      }
-    }, {
-      icon: 'bug',
-      text: 'ReportBug',
-      onClick: () => {
-        const a = document.createElement('a');
-        setBlankToAnchor(a);
-        a.href = 'https://bugs.telegram.org/?tag_ids=40&sort=time';
-        document.body.append(a);
-        a.click();
-        setTimeout(() => {
-          a.remove();
-        }, 0);
-      }
-    }, {
-      icon: 'char' as Icon,
-      className: 'a',
-      text: 'ChatList.Menu.SwitchTo.A',
-      onClick: () => {
-        Promise.all([
-          sessionStorage.set({kz_version: 'Z'}),
-          sessionStorage.delete('tgme_sync')
-        ]).then(() => {
-          location.href = 'https://web.telegram.org/a/';
-        });
-      },
-      verify: () => App.isMainDomain
-    }, /* {
-      icon: 'char w',
-      text: 'ChatList.Menu.SwitchTo.Webogram',
-      onClick: () => {
-        sessionStorage.delete('tgme_sync').then(() => {
-          location.href = 'https://web.telegram.org/?legacy=1';
-        });
-      },
-      verify: () => App.isMainDomain
-    }, */ {
-      icon: 'plusround',
-      text: 'PWA.Install',
-      onClick: () => {
-        const installPrompt = getInstallPrompt();
-        installPrompt?.();
-      },
-      verify: () => !!getInstallPrompt()
-    }];
+      ...menuButtonsMore
+    ];
 
     const filteredButtons = menuButtons.filter(Boolean);
     const filteredButtonsSliced = filteredButtons.slice();
@@ -300,7 +421,7 @@ export class AppSidebarLeft extends SidebarSlider {
         buttons.splice(3, 0, ...attachMenuBotsButtons);
         filteredButtons.splice(0, filteredButtons.length, ...buttons);
       },
-      onOpen: (e, btnMenu) => {
+      onOpen: (_e, btnMenu) => {
         const btnMenuFooter = document.createElement('a');
         btnMenuFooter.href = 'https://github.com/morethanwords/tweb/blob/master/CHANGELOG.md';
         setBlankToAnchor(btnMenuFooter);
@@ -887,7 +1008,7 @@ export class AppSidebarLeft extends SidebarSlider {
     this.inputSearch.input.addEventListener('focus', onFocus);
     onFocus();
 
-    attachClickEvent(this.backBtn, (e) => {
+    attachClickEvent(this.backBtn, (_e) => {
       this.toolsBtn.classList.add(activeClassName);
       this.backBtn.classList.remove(activeClassName);
       this.toolsBtn.parentElement.firstElementChild.classList.toggle('state-back', false);

@@ -25,51 +25,51 @@ export interface CancellablePromise<T> extends Promise<T> {
   _reject?: (...args: any[]) => void
 }
 
-const deferredHelper = {
-  isFulfilled: false,
-  isRejected: false,
-
-  notify: () => {},
-  notifyAll: function(...args: any[]) {
-    this.lastNotify = args;
-    this.listeners?.forEach((callback: any) => callback(...args));
-  },
-
-  addNotifyListener: function(callback: (...args: any[]) => void) {
-    if(this.lastNotify) {
-      callback(...this.lastNotify);
-    }
-
-    (this.listeners ??= []).push(callback);
-  },
-
-  resolve: function(value) {
-    if(this.isFulfilled || this.isRejected) return;
-
-    this.isFulfilled = true;
-    this._resolve(value);
-    this.onFinish();
-  },
-
-  reject: function(...args) {
-    if(this.isRejected || this.isFulfilled) return;
-
-    this.isRejected = true;
-    this._reject(...args);
-    this.onFinish();
-  },
-
-  onFinish: function() {
-    this.notify = this.notifyAll = this.lastNotify = null;
-    if(this.listeners) this.listeners.length = 0;
-
-    if(this.cancel) {
-      this.cancel = noop;
-    }
-  }
-} as CancellablePromise<any>;
-
 export default function deferredPromise<T>() {
+  const deferredHelper = {
+    isFulfilled: false,
+    isRejected: false,
+
+    notify: () => {},
+    notifyAll: function(...args: any[]) {
+      this.lastNotify = args;
+      this.listeners?.forEach((callback: any) => callback(...args));
+    },
+
+    addNotifyListener: function(callback: (...args: any[]) => void) {
+      if(this.lastNotify) {
+        callback(...this.lastNotify);
+      }
+
+      (this.listeners ??= []).push(callback);
+    },
+
+    resolve: function(value) {
+      if(this.isFulfilled || this.isRejected) return;
+
+      this.isFulfilled = true;
+      this._resolve(value);
+      this.onFinish();
+    },
+
+    reject: function(...args) {
+      if(this.isRejected || this.isFulfilled) return;
+
+      this.isRejected = true;
+      this._reject(...args);
+      this.onFinish();
+    },
+
+    onFinish: function() {
+      this.notify = this.notifyAll = this.lastNotify = null;
+      if(this.listeners) this.listeners.length = 0;
+
+      if(this.cancel) {
+        this.cancel = noop;
+      }
+    }
+  } as CancellablePromise<any>;
+
   let resolve: (value: T) => void, reject: (...args: any[]) => void;
   const deferred: CancellablePromise<T> = new Promise<T>((_resolve, _reject) => {
     resolve = _resolve, reject = _reject;

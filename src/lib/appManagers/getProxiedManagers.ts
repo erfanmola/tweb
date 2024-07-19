@@ -7,11 +7,8 @@
 import type createManagers from './createManagers';
 import type {AckedResult} from '../mtproto/superMessagePort';
 import {ModifyFunctionsToAsync} from '../../types';
-import apiManagerProxy from '../mtproto/mtprotoworker';
+import {ApiManagerProxy, apiManagerProxyInstances} from '../mtproto/mtprotoworker';
 import DEBUG from '../../config/debug';
-import dT from '../../helpers/dT';
-import noop from '../../helpers/noop';
-import copy from '../../helpers/object/copy';
 
 // let stats: {
 //   [manager: string]: {
@@ -78,7 +75,7 @@ const DEBUG_MANAGER_REQUESTS: {[managerName: string]: Set<string>} = {
   // appMessagesManager: new Set(['getMessageByPeer', 'getGroupsFirstMessage'])
 };
 
-function createProxy(/* source: T,  */name: string, ack?: boolean) {
+function createProxy(/* source: T,  */name: string, ack: boolean, dbInstance: string) {
   const proxy = new Proxy({}, {
     get: (target, p, receiver) => {
       // console.log('get', target, p, receiver);
@@ -89,7 +86,13 @@ function createProxy(/* source: T,  */name: string, ack?: boolean) {
       // }
 
       return (...args: any[]) => {
-        const promise = apiManagerProxy.invoke('manager', {
+        if(!(dbInstance in apiManagerProxyInstances)) {
+          apiManagerProxyInstances[dbInstance] = new ApiManagerProxy(dbInstance);
+        }
+
+        const managerInstance: ApiManagerProxy = apiManagerProxyInstances[dbInstance];
+
+        const promise = managerInstance.invoke('manager', {
           name,
           method: p as string,
           args
@@ -127,22 +130,27 @@ type ProxiedManagers = {
   }
 };
 
-function createProxyProxy(proxied: any, ack?: boolean) {
+function createProxyProxy(proxied: any, ack: boolean, dbInstance: string) {
   return new Proxy(proxied, {
     get: (target, p, receiver) => {
-      // @ts-ignore
-      return target[p] ??= createProxy(p as string, ack);
+      // // @ts-ignore
+      return target[p] ??= createProxy(p as string, ack, dbInstance);
     }
   });
 }
 
-let proxied: ProxiedManagers;
+const proxiedInstances: {[key: string]: ProxiedManagers} = {};
+
 export default function getProxiedManagers() {
-  if(proxied) {
-    return proxied;
+  return getProxiedManagersInstance();
+}
+
+export function getProxiedManagersInstance(dbInstance: string = 'default') {
+  if(dbInstance in proxiedInstances && proxiedInstances[dbInstance]) {
+    return proxiedInstances[dbInstance];
   }
 
-  proxied = createProxyProxy({}, false);
-  proxied.acknowledged = createProxyProxy({}, true);
-  return proxied;
+  proxiedInstances[dbInstance] = createProxyProxy({}, false, dbInstance);
+  proxiedInstances[dbInstance].acknowledged = createProxyProxy({}, true, dbInstance);
+  return proxiedInstances[dbInstance];
 }

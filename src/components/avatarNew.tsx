@@ -38,7 +38,7 @@ import documentFragmentToNodes from '../helpers/dom/documentFragmentToNodes';
 import DashedCircle, {DashedCircleSection} from '../helpers/canvas/dashedCircle';
 import findUpClassName from '../helpers/dom/findUpClassName';
 import {AckedResult} from '../lib/mtproto/superMessagePort';
-import apiManagerProxy from '../lib/mtproto/mtprotoworker';
+import {apiManagerProxyInstances} from '../lib/mtproto/mtprotoworker';
 import callbackify from '../helpers/callbackify';
 import Icon from './icon';
 import wrapPhoto from './wrappers/photo';
@@ -312,6 +312,7 @@ export function StoriesSegments(props: {
 }
 
 export const AvatarNew = (props: {
+  instanceId?: string,
   peerId?: PeerId,
   threadId?: number,
   isDialog?: boolean,
@@ -351,6 +352,8 @@ export const AvatarNew = (props: {
   const managers = rootScope.managers;
   const middlewareHelper = props.wrapOptions?.middleware ? props.wrapOptions.middleware.create() : getMiddleware();
   let addedToQueue = false, lastRenderPromise: ReturnType<typeof _render>;
+
+  const instanceId = ('instanceId' in props && props.instanceId) ? props.instanceId : 'default';
 
   onCleanup(() => {
     lastRenderPromise = undefined;
@@ -408,7 +411,7 @@ export const AvatarNew = (props: {
     const middleware = middlewareHelper.get();
     const {peerId, useCache} = props;
     const {photo, size} = options;
-    const result = apiManagerProxy.loadAvatar(peerId, photo, size);
+    const result = apiManagerProxyInstances[instanceId].loadAvatar(peerId, photo, size);
     const loadPromise = result;
     const cached = !(result instanceof Promise);
 
@@ -556,7 +559,7 @@ export const AvatarNew = (props: {
       return;
     }
 
-    const peer = props.peer ?? apiManagerProxy.getPeer(peerId);
+    const peer = props.peer ?? apiManagerProxyInstances[instanceId].getPeer(peerId);
     if(title) {
       const color = getPeerAvatarColorByPeer(peer);
       const abbr = wrapAbbreviation(title);
@@ -602,7 +605,7 @@ export const AvatarNew = (props: {
     const photo = getPeerPhoto(peer);
     const avatarAvailable = !!photo;
     const avatarRendered = avatarAvailable && !!media(); // if avatar isn't available, let's reset it
-    const isAvatarCached = avatarAvailable && apiManagerProxy.isAvatarCached(peerId, size);
+    const isAvatarCached = avatarAvailable && apiManagerProxyInstances[instanceId].isAvatarCached(peerId, size);
     if(!middleware()) {
       return;
     }

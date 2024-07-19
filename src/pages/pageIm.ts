@@ -4,6 +4,8 @@
  * https://github.com/morethanwords/tweb/blob/master/LICENSE
  */
 
+import instanceManager from '../config/instances';
+import {initializeInstanceHandlers} from '../config/instances-utils';
 import blurActiveElement from '../helpers/dom/blurActiveElement';
 import loadFonts from '../helpers/dom/loadFonts';
 import I18n from '../lib/langPack';
@@ -26,6 +28,9 @@ const onFirstMount = () => {
   page.pageEl.style.display = '';
 
   blurActiveElement();
+
+  instanceManager.setInstanceLoggedIn(instanceManager.getActiveInstanceID());
+  initializeInstanceHandlers();
 
   return Promise.all([
     import('../lib/appManagers/appDialogsManager'),

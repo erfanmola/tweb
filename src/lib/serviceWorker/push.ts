@@ -10,7 +10,7 @@
  */
 
 import {Database} from '../../config/databases';
-import DATABASE_STATE from '../../config/databases/state';
+import DATABASE_STATE, {DBState} from '../../config/databases/state';
 import {NOTIFICATION_BADGE_PATH, NOTIFICATION_ICON_PATH} from '../../config/notifications';
 import {IS_FIREFOX} from '../../environment/userAgent';
 import deepEqual from '../../helpers/object/deepEqual';
@@ -126,7 +126,7 @@ const defaults: PushStorage = {
   push_settings: {}
 };
 
-const getter = new SomethingGetter<typeof DATABASE_STATE, PushStorage>(DATABASE_STATE, 'session', defaults);
+const getter = new SomethingGetter<typeof DATABASE_STATE, PushStorage>(DBState(), 'session', defaults);
 
 // fill cache
 for(const i in defaults) {

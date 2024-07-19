@@ -9,6 +9,7 @@
  * https://github.com/zhukov/webogram/blob/master/LICENSE
  */
 
+import instanceManager from '../../config/instances';
 import {Database} from '../../config/databases';
 import Modes from '../../config/modes';
 import makeError from '../../helpers/makeError';
@@ -68,7 +69,7 @@ export class IDB {
     return this.storageIsAvailable;
   }
 
-  public openDatabase(createNew = false): Promise<IDBDatabase> {
+  public async openDatabase(createNew = false): Promise<IDBDatabase> {
     if(this.openDbPromise && !createNew) {
       return this.openDbPromise;
     }
@@ -98,7 +99,17 @@ export class IDB {
     };
 
     try {
-      var request = indexedDB.open(this.name, this.version);
+      let dbname;
+      if(this.name === 'tweb') {
+        await instanceManager.waitForInstances();
+        dbname = `${this.name}_${instanceManager.getActiveInstanceID()}`;
+      } else if(!(this.name.startsWith('tweb_'))) {
+        dbname = `tweb_${this.name}`;
+      } else {
+        dbname = this.name;
+      }
+
+      var request = indexedDB.open(dbname, this.version);
 
       if(!request) {
         return Promise.reject();

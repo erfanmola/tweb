@@ -9,11 +9,12 @@ import App from '../../config/app';
 import {MOUNT_CLASS_TO} from '../../config/debug';
 import callbackify from '../../helpers/callbackify';
 import deferredPromise, {CancellablePromise} from '../../helpers/cancellablePromise';
-import cryptoMessagePort from '../crypto/cryptoMessagePort';
+import {CryptoMessagePort, cryptoMessagePortInstances} from '../crypto/cryptoMessagePort';
 import MTProtoMessagePort from '../mtproto/mtprotoMessagePort';
-import appStateManager from './appStateManager';
+import {AppStateManager, appStateManagerInstances} from './appStateManager';
 import {AppStoragesManager} from './appStoragesManager';
-import createManagers from './createManagers';
+import createManagers, {createManagersMulti} from './createManagers';
+import instanceManager from '../../config/instances';
 
 type Managers = Awaited<ReturnType<typeof createManagers>>;
 
@@ -31,8 +32,11 @@ export class AppManagersManager {
   private serviceMessagePort: ServiceMessagePort<true>;
   private _serviceMessagePort: MessagePort
 
-  constructor() {
+  private dbInstance: string;
+
+  constructor(dbInstance: string = 'default') {
     this._isServiceWorkerOnline = CAN_USE_SERVICE_WORKER;
+    this.dbInstance = dbInstance;
 
     this.cryptoWorkersURLs = [];
     this.cryptoPortsAttached = 0;
@@ -60,8 +64,12 @@ export class AppManagersManager {
         return;
       }
 
+      if(!(this.dbInstance in cryptoMessagePortInstances)) {
+        cryptoMessagePortInstances[this.dbInstance] = new CryptoMessagePort();
+      }
+
       ++this.cryptoPortsAttached;
-      cryptoMessagePort.attachPort(port);
+      cryptoMessagePortInstances[this.dbInstance].attachPort(port);
       this.cryptoPortPromise?.resolve();
     });
 
@@ -84,7 +92,7 @@ export class AppManagersManager {
   }
 
   private async createManagers() {
-    const appStoragesManager = new AppStoragesManager();
+    const appStoragesManager = new AppStoragesManager(this.dbInstance);
 
     await Promise.all([
       // new Promise(() => {}),
@@ -92,7 +100,15 @@ export class AppManagersManager {
       this.cryptoPortPromise
     ]);
 
-    const managers = await createManagers(appStoragesManager, appStateManager.userId);
+    if(!(this.dbInstance in appStateManagerInstances)) {
+      appStateManagerInstances[this.dbInstance] = new AppStateManager(this.dbInstance);
+    }
+
+    const appStateManager = appStateManagerInstances[this.dbInstance];
+    const userId = appStateManager.userId;
+
+    const managers = await ((this.dbInstance === 'default') ? createManagers(appStoragesManager, userId) : createManagersMulti(appStoragesManager, userId, this.dbInstance));
+
     return this.managers = managers; // have to overwrite cached promise
   }
 
@@ -154,3 +170,7 @@ export class AppManagersManager {
 const appManagersManager = new AppManagersManager();
 MOUNT_CLASS_TO && (MOUNT_CLASS_TO.appManagersManager = appManagersManager);
 export default appManagersManager;
+
+export const appManagersManagerInstances: {[key: string]: AppManagersManager} = {
+  'default': appManagersManager
+}

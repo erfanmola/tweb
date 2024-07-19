@@ -49,7 +49,7 @@ import defineNotNumerableProperties from '../../helpers/object/defineNotNumerabl
 import getDocumentMediaInput from './utils/docs/getDocumentMediaInput';
 import getFileNameForUpload from '../../helpers/getFileNameForUpload';
 import noop from '../../helpers/noop';
-import appTabsManager from './appTabsManager';
+import {appTabsManagerInstances} from './appTabsManager';
 import MTProtoMessagePort from '../mtproto/mtprotoMessagePort';
 import getGroupedText from './utils/messages/getGroupedText';
 import pause from '../../helpers/schedulers/pause';
@@ -362,6 +362,13 @@ export class AppMessagesManager extends AppManager {
   private historyMaxIdSubscribed: Map<HistoryStorageKey, number> = new Map();
 
   private factCheckBatcher: Batcher<PeerId, number, FactCheck>;
+
+  private dbInstance: string;
+
+  constructor(dbInstance: string = 'default') {
+    super();
+    this.dbInstance = dbInstance;
+  }
 
   protected after() {
     this.clear(true);
@@ -6975,7 +6982,7 @@ export class AppMessagesManager extends AppManager {
       return;
     }
 
-    const tabs = appTabsManager.getTabs();
+    const tabs = appTabsManagerInstances[this.dbInstance].getTabs();
     let tab = tabs.find((tab) => {
       const {chatPeerIds} = tab.state;
       return chatPeerIds[chatPeerIds.length - 1] === peerId;

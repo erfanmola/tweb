@@ -10,7 +10,7 @@ import type {DcId} from '../types';
 import {MOUNT_CLASS_TO} from '../config/debug';
 import LocalStorageController from './localStorage';
 
-const sessionStorage = new LocalStorageController<{
+export type SessionStorage = {
   dc: DcId,
   user_auth: UserAuth,
   state_id: number,
@@ -33,6 +33,12 @@ const sessionStorage = new LocalStorageController<{
     ts: number
   },
   k_build: number
-}>(/* ['kz_version'] */);
+};
+
+const sessionStorage = new LocalStorageController<SessionStorage>(/* ['kz_version'] */);
 MOUNT_CLASS_TO.appStorage = sessionStorage;
 export default sessionStorage;
+
+export const sessionStorageInstances: {[key: string]: LocalStorageController<SessionStorage>} = {
+  'default': sessionStorage
+};

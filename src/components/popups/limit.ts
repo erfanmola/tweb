@@ -4,12 +4,12 @@
  * https://github.com/morethanwords/tweb/blob/master/LICENSE
  */
 
-import {LangPackKey} from '../../lib/langPack';
 import {ApiLimitType} from '../../lib/mtproto/api_methods';
-import rootScope from '../../lib/rootScope';
-import PopupPeer from './peer';
+import {LangPackKey} from '../../lib/langPack';
 import LimitLine from '../limit';
+import PopupPeer from './peer';
 import PopupPremium from './premium';
+import rootScope from '../../lib/rootScope';
 
 const a: {[type in ApiLimitType]?: {
   title: LangPackKey,
@@ -52,6 +52,13 @@ const a: {[type in ApiLimitType]?: {
     descriptionPremium: 'LimitReachedPinDialogsPremium',
     descriptionLocked: 'LimitReachedPinDialogsLocked',
     icon: 'limit_pin'
+  },
+  accounts: {
+    title: 'LimitReached',
+    description: 'LimitReachedAccounts',
+    descriptionPremium: 'LimitReachedAccountsPremium',
+    descriptionLocked: 'LimitReachedAccountsLocked',
+    icon: 'newprivate_filled'
   }
 };
 
@@ -74,7 +81,7 @@ class P extends PopupPeer {
         callback: () => {
           PopupPremium.show({feature: options.feature});
         },
-        iconRight: 'premium_double'
+        iconRight: (_a.descriptionPremium === 'LimitReachedAccountsPremium') ? 'premium_addone' : 'premium_double'
       }, {
         langKey: 'Cancel',
         isCancel: true

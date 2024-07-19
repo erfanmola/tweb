@@ -261,3 +261,7 @@ export class RootScope extends EventListenerBase<BroadcastEventsListeners> {
 const rootScope = new RootScope();
 MOUNT_CLASS_TO.rootScope = rootScope;
 export default rootScope;
+
+export const rootScopeInstances: {[key: string]: RootScope} = {
+  'default': rootScope
+}

@@ -10,9 +10,9 @@ import type {State} from '../config/state';
 import {MOUNT_CLASS_TO} from '../config/debug';
 import {LangPackDifference} from '../layer';
 import AppStorage from './storage';
-import DATABASE_STATE from '../config/databases/state';
+import DATABASE_STATE, {DBState} from '../config/databases/state';
 
-class StateStorage extends AppStorage<{
+export class StateStorage extends AppStorage<{
   chatPositions: {
     [peerId_threadId: string]: ChatSavedPosition
   },
@@ -20,11 +20,15 @@ class StateStorage extends AppStorage<{
   drafts: AppDraftsManager['drafts'],
   user_auth: any, // support old webk format
 } & State, typeof DATABASE_STATE> {
-  constructor() {
-    super(DATABASE_STATE, 'session');
+  constructor(dbInstance: string = 'default') {
+    super(DBState(dbInstance), 'session');
   }
 }
 
 const stateStorage = new StateStorage();
 MOUNT_CLASS_TO.stateStorage = stateStorage;
 export default stateStorage;
+
+export const stateStorageInstances: {[key: string]: StateStorage} = {
+  'default': stateStorage
+}

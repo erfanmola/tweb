@@ -59,3 +59,7 @@ export class CryptoMessagePort<Master extends boolean = false> extends SuperMess
 const cryptoMessagePort = new CryptoMessagePort<false>();
 MOUNT_CLASS_TO && (MOUNT_CLASS_TO.cryptoMessagePort = cryptoMessagePort);
 export default cryptoMessagePort;
+
+export const cryptoMessagePortInstances: {[key: string]: CryptoMessagePort} = {
+  'default': cryptoMessagePort
+}
