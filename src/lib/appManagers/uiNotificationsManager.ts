@@ -21,7 +21,7 @@ import tsNow from '../../helpers/tsNow';
 import {Message, MessagePeerReaction, PeerNotifySettings, Reaction} from '../../layer';
 import I18n, {FormatterArguments, LangPackKey} from '../langPack';
 import {apiManagerProxyInstances} from '../mtproto/mtprotoworker';
-import {multiInstance} from '../mtproto/singleInstance';
+import {multiInstance, SingleInstance} from '../mtproto/singleInstance';
 import webPushApiManager, {PushSubscriptionNotify} from '../mtproto/webPushApiManager';
 import fixEmoji from '../richTextProcessor/fixEmoji';
 import getAbbreviation from '../richTextProcessor/getAbbreviation';
@@ -126,6 +126,10 @@ export class UiNotificationsManager {
     document.body.append(this.notifySoundEl);
 
     this.topMessagesDeferred = deferredPromise<void>();
+
+    if(!(this.dbInstance in multiInstance)) {
+      multiInstance[this.dbInstance] = new SingleInstance(this.dbInstance);
+    }
 
     multiInstance[this.dbInstance].addEventListener('deactivated', () => {
       this.stop();
