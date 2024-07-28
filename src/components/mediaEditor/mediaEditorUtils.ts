@@ -291,5 +291,3 @@ export class MediaEditorSVGUtils {
     return false;
   }
 }
-
-
