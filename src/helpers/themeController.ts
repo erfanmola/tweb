@@ -8,7 +8,7 @@ import type {AppTheme} from '../config/state';
 import type {Theme} from '../layer';
 import type AppBackgroundTab from '../components/sidebarLeft/tabs/background';
 import IS_TOUCH_SUPPORTED from '../environment/touchSupport';
-import rootScope from '../lib/rootScope';
+import {rootScopeInstances} from '../lib/rootScope';
 import {changeColorAccent, ColorRgb, getAccentColor, getAverageColor, getHexColorFromTelegramColor, getRgbColorFromTelegramColor, hexToRgb, hslaStringToHex, hslaStringToRgba, hslaToRgba, hsvToRgb, mixColors, rgbaToHexa, rgbaToHsla, rgbToHsv} from './color';
 import {MOUNT_CLASS_TO} from '../config/debug';
 import customProperties from './dom/customProperties';
@@ -116,12 +116,16 @@ export class ThemeController {
   public AppBackgroundTab: typeof AppBackgroundTab;
   private applied: boolean;
 
-  constructor() {
-    rootScope.addEventListener('theme_change', (coordinates) => {
+  private dbInstance: string;
+
+  constructor(dbInstance: string = 'default') {
+    this.dbInstance = dbInstance;
+
+    rootScopeInstances[this.dbInstance].addEventListener('theme_change', (coordinates) => {
       this.setTheme(typeof(coordinates) === 'object' ? coordinates : undefined);
     });
 
-    rootScope.addEventListener('theme_changed', () => {
+    rootScopeInstances[this.dbInstance].addEventListener('theme_changed', () => {
       this.setWorkerThemeParams();
     });
 
@@ -129,7 +133,7 @@ export class ThemeController {
   }
 
   private setWorkerThemeParams() {
-    rootScope.managers.apiManager.setThemeParams({
+    rootScopeInstances[this.dbInstance].managers.apiManager.setThemeParams({
       _: 'dataJSON',
       data: JSON.stringify(this.getThemeParamsForWebView())
     });
@@ -162,8 +166,8 @@ export class ThemeController {
         this.systemTheme = darkModeMediaQuery.matches ? 'night' : 'day';
         // const newTheme = this.getTheme();
 
-        if(rootScope.myId) {
-          rootScope.dispatchEvent('theme_change');
+        if(rootScopeInstances[this.dbInstance].myId) {
+          rootScopeInstances[this.dbInstance].dispatchEvent('theme_change');
         } else {
           this.setTheme();
         }
@@ -223,11 +227,11 @@ export class ThemeController {
     }
 
     const e = document.createElement('div');
-    this.applyTheme(rootScope.settings.themes.find((theme) => theme.name === 'night'), e, true);
+    this.applyTheme(rootScopeInstances[this.dbInstance].settings.themes.find((theme) => theme.name === 'night'), e, true);
     style.textContent = `.night {${e.style.cssText}}`;
 
     this.applyHighlightingColor();
-    !silent && rootScope.dispatchEventSingle('theme_changed');
+    !silent && rootScopeInstances[this.dbInstance].dispatchEventSingle('theme_changed');
   }
 
   public setTheme(coordinates?: {x: number, y: number}) {
@@ -290,16 +294,16 @@ export class ThemeController {
   }
 
   public async switchTheme(name: AppTheme['name'], coordinates?: {x: number, y: number}) {
-    await rootScope.managers.appStateManager.setByKey(joinDeepPath('settings', 'theme'), name);
-    rootScope.dispatchEvent('theme_change', coordinates);
+    await rootScopeInstances[this.dbInstance].managers.appStateManager.setByKey(joinDeepPath('settings', 'theme'), name);
+    rootScopeInstances[this.dbInstance].dispatchEvent('theme_change', coordinates);
   }
 
   public isNight() {
     return this.getTheme().name === 'night';
   }
 
-  public getTheme(name: AppTheme['name'] = rootScope.settings.theme === 'system' ? this.systemTheme : rootScope.settings.theme) {
-    return rootScope.settings.themes.find((t) => t.name === name);
+  public getTheme(name: AppTheme['name'] = rootScopeInstances[this.dbInstance].settings.theme === 'system' ? this.systemTheme : rootScopeInstances[this.dbInstance].settings.theme) {
+    return rootScopeInstances[this.dbInstance].settings.themes.find((t) => t.name === name);
   }
 
   // theme applier
@@ -378,7 +382,7 @@ export class ThemeController {
   public async applyNewTheme(theme: Theme) {
     const isNight = this.isNightTheme(theme);
     const currentTheme = this.getTheme();
-    const themes = rootScope.settings.themes;
+    const themes = rootScopeInstances[this.dbInstance].settings.themes;
     const themeSettings = theme.settings.find((themeSettings) => themeSettings.base_theme._ === (isNight ? 'baseThemeNight' : 'baseThemeClassic'));
     const newAppTheme: AppTheme = {
       ...theme,
@@ -391,8 +395,8 @@ export class ThemeController {
 
     await this.AppBackgroundTab.setBackgroundDocument(themeSettings.wallpaper, newAppTheme.settings);
     themes[themes.indexOf(currentTheme)] = newAppTheme;
-    await rootScope.managers.appStateManager.setByKey(joinDeepPath('settings', 'themes'), rootScope.settings.themes);
-    rootScope.dispatchEvent('theme_change');
+    await rootScopeInstances[this.dbInstance].managers.appStateManager.setByKey(joinDeepPath('settings', 'themes'), rootScopeInstances[this.dbInstance].settings.themes);
+    rootScopeInstances[this.dbInstance].dispatchEvent('theme_change');
   }
 
   private isNightTheme(theme: Theme | AppTheme) {

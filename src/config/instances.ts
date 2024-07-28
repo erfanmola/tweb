@@ -150,6 +150,9 @@ class InstanceManager {
   }
 
   public getPassiveInstanceIDs() {
+    if(this.getLoggedInInstanceIDs().length === 1) {
+      return [];
+    }
     return this.instances.filter(item => !(item.active) && item.logged_in).map(item => item.id);
   }
 
@@ -166,7 +169,7 @@ class InstanceManager {
     }
 
     this.instances = this.instances.map(item => {
-      item.active = (item.id === instanceId);
+      item.active = (item.id == instanceId);
       return item;
     });
 
@@ -217,7 +220,9 @@ class InstanceManager {
     ];
 
     if(totalUnread > 0) {
-      document.querySelector('.animated-menu-icon-indicator').classList.add('animated-menu-icon-indicator-visible');
+      if(instanceManager.getPassiveInstanceIDs().length > 0) {
+        document.querySelector('.animated-menu-icon-indicator').classList.add('animated-menu-icon-indicator-visible');
+      }
 
       if((totalUnreadUnmuted - (this.unreadStats[this.getActiveInstanceID()]?.unmute ?? 0)) > 0) {
         document.querySelector('.animated-menu-icon-indicator').classList.add('animated-menu-icon-indicator-active');

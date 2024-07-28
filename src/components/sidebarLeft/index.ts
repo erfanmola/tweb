@@ -378,7 +378,9 @@ export class AppSidebarLeft extends SidebarSlider {
       }, {
         icon: 'more',
         text: 'More',
-        onClick: () => {},
+        onClick: () => {
+          alert('Ask Eduard to implement the actual ButtonMenuItemInner, it\'s not functioning right now, though I have passed it correctly, I have an scroll bug to fix.')
+        },
         keepOpen: true,
         inner: () => {
           return {
