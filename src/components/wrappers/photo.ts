@@ -27,6 +27,7 @@ import {Middleware} from '../../helpers/middleware';
 import liteMode from '../../helpers/liteMode';
 import isWebFileLocation from '../../lib/appManagers/utils/webFiles/isWebFileLocation';
 import apiManagerProxy from '../../lib/mtproto/mtprotoworker';
+import {ScrollIntersector} from '../../helpers/scrollIntersector';
 
 export default async function wrapPhoto({photo, message, container, boxWidth, boxHeight, withTail, isOut, lazyLoadQueue, middleware, size, withoutPreloader, loadPromises, autoDownloadSize, noBlur, noThumb, noFadeIn, blurAfter, managers = rootScope.managers, processUrl, fadeInElement, onRender, onRenderFinish, useBlur, useRenderCache, canHaveVideoPlayer}: {
   photo: MyPhoto | MyDocument | WebDocument | InputWebFileLocation,
@@ -225,6 +226,7 @@ export default async function wrapPhoto({photo, message, container, boxWidth, bo
     media = ret.images.full = new Image();
     media.classList.add('media-photo');
   }
+  ScrollIntersector.observe(media);
 
   // console.log('wrapPhoto downloaded:', photo, photo.downloaded, container);
 

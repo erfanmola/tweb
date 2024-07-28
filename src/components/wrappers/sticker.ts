@@ -44,6 +44,7 @@ import Icon from '../icon';
 import {SHOULD_HANDLE_VIDEO_LEAK, attachVideoLeakListeners, leakVideoFallbacks, onVideoLeak} from '../../helpers/dom/handleVideoLeak';
 import noop from '../../helpers/noop';
 import {IS_WEBM_SUPPORTED} from '../../environment/videoSupport';
+import {ScrollIntersector} from '../../helpers/scrollIntersector';
 
 // https://github.com/telegramdesktop/tdesktop/blob/master/Telegram/SourceFiles/history/view/media/history_view_sticker.cpp#L40
 export const STICKER_EFFECT_MULTIPLIER = 1 + 0.245 * 2;
@@ -449,6 +450,7 @@ export default async function wrapSticker({doc, div, middleware, loadStickerMidd
         textColor: !isCustomEmoji ? textColor : undefined
       });
 
+      animation.canvas.forEach((canvas) => ScrollIntersector.observe(canvas));
       // const deferred = deferredPromise<void>();
 
       const setLockColor = willHaveLock ? () => {
@@ -578,6 +580,8 @@ export default async function wrapSticker({doc, div, middleware, loadStickerMidd
       if(needFadeIn) {
         media.forEach((media) => media.classList.add('fade-in'));
       }
+
+      media.forEach((media) => ScrollIntersector.observe(media));
 
       const promise = new Promise<HTMLVideoElement[] | HTMLImageElement[]>(async(resolve, reject) => {
         const r = async() => {

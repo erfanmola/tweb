@@ -51,6 +51,7 @@ import debounce from '../../helpers/schedulers/debounce';
 import {isFullScreen} from '../../helpers/dom/fullScreen';
 import ButtonIcon from '../buttonIcon';
 import overlayCounter from '../../helpers/overlayCounter';
+import {ScrollIntersector} from '../../helpers/scrollIntersector';
 
 const MAX_VIDEO_AUTOPLAY_SIZE = 50 * 1024 * 1024; // 50 MB
 const USE_OBSERVER = false;
@@ -214,6 +215,7 @@ export default async function wrapVideo({doc, altDoc, container, message, boxWid
   let preloader: ProgressivePreloader; // it must be here, otherwise will get error before initialization in round onPlay
 
   const video = createVideo({middleware, pip: willObserveSound});
+  ScrollIntersector.observe(video);
   video.classList.add('media-video');
   video.muted = true;
   if(doc.type === 'round') {
