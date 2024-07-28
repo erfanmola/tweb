@@ -1119,3 +1119,28 @@ $btn-menu-z-index: 4;
   /* left: var(--offset); */
   inset-inline-end: auto !important;
 }
+
+.icon-button-group-container {
+  background-color: rgba(0, 0, 0, 0.25);
+  border-radius: 0.625rem;
+  display: flex;
+  overflow: hidden;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+
+  > span {
+    > span {
+      display: block;
+      padding: 0.3125rem;
+      color: #fff;
+      border-radius: var(--border-radius-messages-small);
+      transition: 0.2s background-color ease-in-out;
+      cursor: pointer;
+      pointer-events: all;
+
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.15);
+      }
+    }
+  }
+}

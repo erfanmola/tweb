@@ -6,7 +6,7 @@ export type RangeSelectorProps =
   Parameters<RangeSelector['setHandlers']>[0] &
   {value: number, class?: string};
 
-export const RangeSelectorTsx = (props: RangeSelectorProps) => {
+export const RangeSelectorSolid = (props: RangeSelectorProps) => {
   const [events, options] = splitProps(props, [
     'onMouseDown',
     'onMouseUp',
@@ -34,5 +34,9 @@ export const RangeSelectorTsx = (props: RangeSelectorProps) => {
   }));
   onMount(() => selector.setListeners());
 
-  return selector.container;
+  return selector;
+};
+
+export const RangeSelectorTsx = (props: RangeSelectorProps) => {
+  return RangeSelectorSolid(props).container;
 };

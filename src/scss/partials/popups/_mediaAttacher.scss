@@ -18,7 +18,7 @@
       //max-height: unquote('min(640px, 100%)');
       max-height: 100%;
 
-      img, 
+      img,
       video {
         border-radius: inherit;
       }
@@ -32,7 +32,7 @@
       margin-bottom: 9px;
       padding: 12px 20px 15px;
       position: relative;
-  
+
       .btn-primary {
         width: auto;
         height: 2.25rem;
@@ -81,7 +81,7 @@
 
   .menu-send {
     z-index: 4;
-    top: calc(100% + .25rem);
+    top: calc(100% + 0.25rem);
   }
 }
 
@@ -105,7 +105,7 @@
   .menu-send {
     top: unset;
     bottom: 3.5rem;
-    right: .5rem;
+    right: 0.5rem;
   }
 
   .popup-header {
@@ -118,7 +118,7 @@
     position: relative;
 
     .scrollable {
-      padding: 0 .5rem;
+      padding: 0 0.5rem;
     }
   }
 
@@ -139,7 +139,7 @@
     height: 2.5rem;
     line-height: 2.5rem;
     text-transform: uppercase;
-    margin-bottom: .5rem;
+    margin-bottom: 0.5rem;
   }
 
   .popup-input-container {
@@ -148,7 +148,7 @@
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    padding: 0 .5rem;
+    padding: 0 0.5rem;
     min-height: var(--height);
     max-height: var(--max-height);
     position: relative;
@@ -187,7 +187,7 @@
       position: absolute;
     }
 
-    img, 
+    img,
     video {
       object-fit: cover;
       width: 100%;
@@ -212,7 +212,7 @@
   }
 
   .popup-photo > .popup-item + .popup-item {
-    margin-top: .5rem;
+    margin-top: 0.5rem;
   }
 
   .drop {
@@ -221,10 +221,10 @@
 
   .document,
   .audio {
-    --icon-margin: .5rem;
+    --icon-margin: 0.5rem;
     --icon-size: 3rem;
-    --padding: .25rem;
-    margin: 0 .25rem;
+    --padding: 0.25rem;
+    margin: 0 0.25rem;
     border-radius: $border-radius-medium;
     cursor: default;
     height: 3.5rem;
@@ -249,7 +249,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
       line-height: 1.5;
-      margin-bottom: .125rem;
+      margin-bottom: 0.125rem;
     }
 
     &-ico {
@@ -283,8 +283,8 @@
 
   .btn-send-effect {
     &-container {
-      bottom: -.25rem;
-      inset-inline-end: -.25rem;
+      bottom: -0.25rem;
+      inset-inline-end: -0.25rem;
       box-shadow: var(--menu-box-shadow);
     }
   }
@@ -328,4 +328,21 @@
     margin-top: -1px;
     margin-inline-start: -4px;
   }
+}
+
+.popup-item-media-options {
+  position: absolute;
+  top: calc(100% - 0.425rem);
+  transform: translateY(-100%) translateX(-50%);
+  left: 50%;
+  z-index: 10;
+  opacity: 0;
+
+  @include animation-level(2) {
+    transition: opacity var(--transition-standard-in);
+  }
+}
+
+.popup-item:hover > .popup-item-media-options {
+  opacity: 1;
 }

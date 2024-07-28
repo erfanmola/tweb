@@ -38,7 +38,7 @@ export default class ColorPicker {
   private rgbInputField: InputField;
   public onChange: (color: ReturnType<ColorPicker['getCurrentColor']>) => void;
 
-  constructor() {
+  constructor(options: {thickSlider: boolean} = {thickSlider: false}) {
     this.container = document.createElement('div');
     this.container.classList.add(ColorPicker.BASE_CLASS);
 
@@ -76,7 +76,9 @@ export default class ColorPicker {
               <stop offset="100%" stop-color="#f00"></stop>
             </linearGradient>
           </defs>
-          <rect rx="4" ry="4" x="0" y="9" width="380" height="8" fill="url(#hue)"></rect>
+          ${options.thickSlider ?
+            `<rect rx="12" ry="12" x="0" y="4" width="100%" height="20" fill="url(#hue)"></rect>` :
+            `<rect rx="4" ry="4" x="0" y="9" width="380" height="8" fill="url(#hue)"></rect>` }
           <svg class="${ColorPicker.BASE_CLASS + '-dragger'} ${ColorPicker.BASE_CLASS + '-color-slider-dragger'}" x="0" y="13">
             <circle r="11" fill="inherit" stroke="#fff" stroke-width="2"></circle>
           </svg>

@@ -12,6 +12,7 @@ import I18n from '../lib/langPack';
 export default class RangeSelector {
   public container: HTMLDivElement;
   protected filled: HTMLDivElement;
+  protected center_filled: HTMLDivElement;
   protected seek: HTMLInputElement;
 
   public mousedown = false;
@@ -33,6 +34,7 @@ export default class RangeSelector {
   protected withTransition = false;
   protected useTransform = false;
   protected vertical = false;
+  protected center = false;
 
   constructor(
     options: {
@@ -42,6 +44,7 @@ export default class RangeSelector {
       withTransition?: RangeSelector['withTransition'],
       useTransform?: RangeSelector['useTransform'],
       vertical?: RangeSelector['vertical']
+      center?: RangeSelector['center']
     },
     value = 0
   ) {
@@ -75,7 +78,14 @@ export default class RangeSelector {
     const index = stepStr.indexOf('.');
     this.decimals = index === -1 ? 0 : stepStr.length - index - 1;
 
-    this.container.append(this.filled, seek);
+    if(this.center) {
+      this.container.classList.add('center');
+      this.center_filled = document.createElement('div');
+      this.center_filled.classList.add('progress-line__center_filled');
+      this.container.append(this.filled, this.center_filled, seek);
+    } else {
+      this.container.append(this.filled, seek);
+    }
   }
 
   public setMinMax(min?: number, max?: number) {
@@ -141,6 +151,16 @@ export default class RangeSelector {
       this.filled.style.transform = `scaleX(${percents})`;
     } else {
       this.filled.style.width = (percents * 100) + '%';
+    }
+
+    if(this.center) {
+      if(percents < 0.5) {
+        this.center_filled.style.width = `${(0.5 - percents) * 100}%`;
+        this.center_filled.style.left = `${percents * 100}%`;
+      } else {
+        this.center_filled.style.width = `${(percents - 0.5) * 100}%`;
+        this.center_filled.style.left = `50%`;
+      }
     }
   }
 

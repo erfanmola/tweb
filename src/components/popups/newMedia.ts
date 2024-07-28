@@ -54,6 +54,9 @@ import {ChatType} from '../chat/chat';
 import pause from '../../helpers/schedulers/pause';
 import {Accessor, createRoot, createSignal, Setter} from 'solid-js';
 import SelectedEffect from '../chat/selectedEffect';
+import IconButtonGroup from '../iconButtonGroup';
+import Icon from '../icon';
+import MediaEditor from '../mediaEditor/mediaEditor';
 
 type SendFileParams = SendFileDetails & {
   file?: File,
@@ -447,6 +450,8 @@ export default class PopupNewMedia extends PopupElement {
       return;
     }
 
+    item.itemDiv.querySelector('.icon-button-group-container > span > span.mediaspoiler').replaceWith(Icon('mediaspoileroff', 'mediaspoileroff'));
+
     toggleMediaSpoiler({
       mediaSpoiler,
       reveal: false
@@ -454,6 +459,7 @@ export default class PopupNewMedia extends PopupElement {
   }
 
   private removeMediaSpoiler(item: SendFileParams) {
+    item.itemDiv.querySelector('.icon-button-group-container > span > span.mediaspoileroff').replaceWith(Icon('mediaspoiler', 'mediaspoiler'));
     toggleMediaSpoiler({
       mediaSpoiler: item.mediaSpoiler,
       reveal: true,
@@ -770,7 +776,7 @@ export default class PopupNewMedia extends PopupElement {
 
       let error: Error;
       try {
-        const promise = onMediaLoad(video);
+        const promise = onMediaLoad(video as HTMLMediaElement);
         await handleVideoLeak(video, promise);
       } catch(err) {
         error = err as any;
@@ -825,6 +831,52 @@ export default class PopupNewMedia extends PopupElement {
             };
           })
         ]).then(() => {});
+      } else {
+        const mediaEditor = new MediaEditor(params.objectURL);
+        mediaEditor.onApply(async(blob) => {
+          params.file = new File([blob], params.file.name);
+          params.objectURL = await apiManagerProxy.invoke('createObjectURL', blob);
+          params.scaledBlob = blob;
+          img.src = params.objectURL;
+        });
+
+        const options = IconButtonGroup({
+          className: 'popup-item-media-options',
+          buttons: [
+            {
+              icon: 'enhance',
+              onClick: () => {
+                mediaEditor.hide();
+                mediaEditor.show();
+              }
+            },
+            {
+              icon: 'mediaspoiler',
+              onClick: (e) => {
+                const el = (e.currentTarget as HTMLSpanElement);
+                if(el.children[0].classList.contains('mediaspoiler')) {
+                  this.applyMediaSpoiler(params);
+                } else {
+                  this.removeMediaSpoiler(params);
+                }
+              }
+            },
+            {
+              icon: 'delete',
+              onClick: () => {
+                this.willAttach.sendFileDetails.splice(this.willAttach.sendFileDetails.indexOf(params), 1);
+                this.files.splice(this.files.indexOf(params.file), 1);
+                if(this.mediaCount() === 0) {
+                  this.hide();
+                } else {
+                  this.attachFiles();
+                }
+              }
+            }
+          ]
+        });
+
+        itemDiv.append(options);
       }
     }
   }

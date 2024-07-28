@@ -668,7 +668,7 @@ export default async function wrapSticker({doc, div, middleware, loadStickerMidd
                 if(media.duration < 1 ||
                   media.getVideoPlaybackQuality().totalVideoFrames < 10) {
                   const detach = attachVideoLeakListeners(media);
-                  middleware.onClean(detach);
+                  middleware?.onClean(detach);
                 }
               }
 

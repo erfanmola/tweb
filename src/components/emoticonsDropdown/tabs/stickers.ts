@@ -30,6 +30,7 @@ import EmoticonsTabC from '../tab';
 import {i18n} from '../../../lib/langPack';
 import {onCleanup} from 'solid-js';
 import SuperStickerRenderer from './SuperStickerRenderer';
+import {MiddlewareHelper} from '../../../helpers/middleware';
 
 type StickersTabItem = {element: HTMLElement, document: Document.document};
 export default class StickersTab extends EmoticonsTabC<StickersTabCategory<StickersTabItem>, Document.document[]> {
@@ -111,7 +112,7 @@ export default class StickersTab extends EmoticonsTabC<StickersTabCategory<Stick
     StickersTab._onCategoryVisibility(category, visible);
   };
 
-  public init() {
+  public init(externalIntersectionOptions?: IntersectionObserverInit, externalClickListener?: (e: Event) => void, externalStickerRenderer?: (middlewareHelper: MiddlewareHelper) => SuperStickerRenderer) {
     super.init();
 
     this.scrollable.onAdditionalScroll = () => {
@@ -135,7 +136,7 @@ export default class StickersTab extends EmoticonsTabC<StickersTabCategory<Stick
       }
     }); */
 
-    const intersectionOptions = this.emoticonsDropdown.intersectionOptions;
+    const intersectionOptions = externalIntersectionOptions || this.emoticonsDropdown.intersectionOptions;
     this.categoriesIntersector = new VisibilityIntersector(this.onCategoryVisibility, intersectionOptions);
 
     this.scrollable.container.addEventListener('click', (e) => {
@@ -150,8 +151,11 @@ export default class StickersTab extends EmoticonsTabC<StickersTabCategory<Stick
         PopupElement.createPopup(PopupStickers, {id: category.set.id, access_hash: category.set.access_hash}, false, this.emoticonsDropdown.chatInput).show();
         return;
       }
-
-      this.emoticonsDropdown.onMediaClick(e);
+      if(externalClickListener) {
+        externalClickListener(e);
+      } else {
+        this.emoticonsDropdown.onMediaClick(e);
+      }
     });
 
     this.menuOnClickResult = EmoticonsDropdown.menuOnClick(this, this.menu, this.scrollable, this.menuScroll);
@@ -251,7 +255,7 @@ export default class StickersTab extends EmoticonsTabC<StickersTabCategory<Stick
       });
     });
 
-    this.stickerRenderer = this.createStickerRenderer();
+    this.stickerRenderer = externalStickerRenderer ? externalStickerRenderer(this.middlewareHelper) : this.createStickerRenderer();
 
     rootScope.addEventListener('sticker_updated', ({type, document, faved}) => {
       // if(type === 'faved') {
